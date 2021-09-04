@@ -1,0 +1,18 @@
+version: '2.4'
+services:
+  joyride:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ilude/joyride
+    container_name: joyride
+    restart: unless-stopped
+    environment:
+      - HOSTIP=${HOSTIP}
+      - UPSTREAM_DNS=${UPSTREAM_DNS}
+    ports:
+      - 53:53/udp
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - autoheal=true

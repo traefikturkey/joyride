@@ -1,0 +1,15 @@
+no-resolv
+no-poll
+no-hosts
+hostsdir=/etc/dnsmasq.d 
+keep-in-foreground 
+log-facility=- 
+log-queries
+no-dhcp-interface=eth0
+<% if ENV['UPSTREAM_DNS'] %>
+server=<%= ENV['UPSTREAM_DNS'] %>
+<% end %>
+<% if ENV['DOMAIN'] %>
+local=/<%= ENV['DOMAIN'] %>/
+domain=<%= ENV['DOMAIN'] %>
+<% end %>

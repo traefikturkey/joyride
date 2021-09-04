@@ -14,7 +14,7 @@ RUN \
     dnsmasq \
     tzdata \
   && update-ca-certificates \
-  && gem install bundler:1.17.3 \
+  && ln -snf /etc/localtime /usr/share/zoneinfo/$TZ && echo $TZ > /etc/timezone \
   && rm -rf \
     /usr/lib/ruby/gems/*/cache/* \
     /root/.gem/ \
@@ -22,7 +22,18 @@ RUN \
     /tmp/* \
     /var/tmp/*
 
+WORKDIR /app
+
+COPY ./app/Gemfile /app/Gemfile
+RUN bundle install
+
+COPY *-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/*-entrypoint.sh 
+
+COPY ./app /app
+
 EXPOSE 53/udp
 
-
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD [ "bundle", "exec", "ruby", "joyride.rb" ]
    

@@ -1,7 +1,20 @@
 module Joyride
-  class DnsGenerator < Generator::Base
-    def initialize(locator)
-      super("/etc/dnsmasq.d/hosts", "/app/templates/dnsmasq.hosts.erb", locator, 3)
+  class DnsGenerator
+
+    protected attr_reader :template, :log, :dnsmasq_process
+
+    public 
+
+    def initialize(log)
+      @log = log
+      @template = Template.new("/etc/dnsmasq.d/hosts", "/app/templates/dnsmasq.hosts.erb", log)
+
+      # write out basic dnsmasq.conf
+      Template.new("/etc/dnsmasq.conf", "/app/templates/dnsmasq.conf.erb", log).write_template()
+
+      #start dnsmasq
+      log.info "Starting dnsmasq..."
+      @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq" }
     end
 
     def process(context)
@@ -11,14 +24,10 @@ module Joyride
         log.info "\ttemplate => #{domain}"
       end
 
-      write_template(TemplateContext.new({domains: context.domains}).instance_eval { binding })
-    end
+      template.write_template({domains: context.domains})
 
-    class TemplateContext < OpenStruct
-      def ENV
-        ENV
-      end
+      log.info "Signaling dnsmasq to reload configuration... "
+      Process.kill("HUP", dnsmasq_process)
     end
-
   end
 end
