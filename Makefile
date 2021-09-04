@@ -39,7 +39,7 @@ echo:
 	@echo "UPSTREAM_DNS: $(UPSTREAM_DNS)"
 	
 logs:
-	docker-compose logs 
+	docker-compose logs -f
 
 bash: build 
 	docker-compose run --rm joyride bash
