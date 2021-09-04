@@ -32,7 +32,7 @@ RUN chmod +x /usr/local/bin/*-entrypoint.sh
 
 COPY ./app /app
 
-EXPOSE 53/udp
+EXPOSE 54/udp
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD [ "bundle", "exec", "ruby", "joyride.rb" ]
