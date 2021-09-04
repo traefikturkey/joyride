@@ -11,7 +11,7 @@ services:
       - HOSTIP=${HOSTIP}
       - UPSTREAM_DNS=${UPSTREAM_DNS}
     ports:
-      - 53:53/udp
+      - 54:54/udp
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
