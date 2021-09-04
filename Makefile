@@ -56,6 +56,9 @@ clean:
 	-docker image rm -f $(shell docker image ls -q --filter label=ilude-project=joyride)
 	-rm Dockerfile
 
+test: build
+	docker-compose -f docker-compose.yml -f docker-compose.whoami.yml up --force-recreate --abort-on-container-exit --remove-orphans
+
 setup:
 	sudo systemctl stop systemd-resolved
 	sudo systemctl disable systemd-resolved

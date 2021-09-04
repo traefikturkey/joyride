@@ -21,7 +21,7 @@ module Joyride
       log.info "Generating dnsmasq config with hosts:"
 
       context.domains.each do |domain|
-        log.info "\ttemplate => #{domain}"
+        log.info "\ttemplate => #{domain} #{ENV['HOSTIP']}"
       end
 
       template.write_template({domains: context.domains})

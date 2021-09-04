@@ -17,16 +17,10 @@ module Joyride
       # and those containers must have a HostnameLabel
       return unless event.type.eql?("container") && ["start", "stop", "die"].include?(event.action) && event.actor.attributes.has_key?(HostnameLabel)
 
-      # return if we already know about starting container
-      return if event.action.eql?("start") && running_containers.any?{|c| c.id.eql?(event.id) }
-
-      # return if we are not removing a stopping container
-      return if (event.action.eql?("stop") || event.action.eql?("die")) && running_containers.none?{|c| c.id.eql?(event.id) }
-      
       # if we made it here, we need an update
       update()
-    rescue => e
-      self.log.error e.message
+    rescue => ex
+      log.error "Error processing docker event! #{ex.message}\n\tBacktrace - #{ex.backtrace.join("\n\tBacktrace - ")}"
     end
 
     def reset; @dirty = false end
@@ -35,7 +29,7 @@ module Joyride
     private 
 
     def update()
-      @domains = Docker::Container.all(all: true, filters: { status: ["running"], label: ["HostnameLabel"]  }.to_json)
+      @domains = Docker::Container.all(all: true, filters: { status: ["running"], label: [HostnameLabel]  }.to_json)
         .map{|c| c.info["Labels"][HostnameLabel] }
         .uniq
 

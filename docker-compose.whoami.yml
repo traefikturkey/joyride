@@ -1,0 +1,9 @@
+version: '2.4'
+services:
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    ports:
+      - 80:80/tcp
+    labels:
+      - joyride.host.name=whoami.ilude.com
