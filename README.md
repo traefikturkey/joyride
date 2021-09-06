@@ -6,8 +6,8 @@ Joyride watches for containers starting and stopping via docker events seen on /
 Example:
 ```
 HOSTIP=$(ip route get 1 | head -1 | awk '{print $7}')
-docker build -t ilude/joyride .
-docker run -e HOSTIP=$(HOSTIP) ilude/joyride
+docker pull ghcr.io/ilude/joyride:latest
+docker run -e HOSTIP=$(HOSTIP) ghcr.io/ilude/joyride
 
 # pull and start an example whoami container
 docker pull traefik/whoami
@@ -17,37 +17,16 @@ docker run -l joyride.host.name=whoami.example.com traefik/whoami
 dig localhost#54 whoami.example.com
 ```
 
-Or use the provided cross platform compatible Makefile (linux,macos,windows):
-```
-# starts container in daemon mode
-make 
-
-# stops running container
-make down
-
-# tail the docker logs
-make logs
-
-# starts container with terminal attached 
-# so you can watch the logs
-make up
-
-# start up test whoami container
-make test
-```
-
 docker-compose.yml
 ```
 version: '2.4'
 services:
   joyride:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ilude/joyride
-    container_name: joyride
+    image: ghcr.io/ilude/joyride:latest
     restart: unless-stopped
     environment:
+      # run the following before docker-compose
+      # export HOSTIP=$(ip route get 1 | head -1 | awk '{print $7}')
       - HOSTIP=${HOSTIP}
     ports:
       - 54:54/udp

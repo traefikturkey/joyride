@@ -7,10 +7,9 @@ export COMPOSE_DOCKER_CLI_BUILD := 1
 ifndef HOSTIP
 	ifeq ($(OS),Windows_NT)
 		HOSTIP := $(shell powershell -command '(Get-NetIPConfiguration | Where-Object {$$_.IPv4DefaultGateway -ne $$null -and $$_.NetAdapter.Status -ne "Disconnected"}).IPv4Address.IPAddress' )
-		UPSTREAM_DNS :=  $(shell powershell -command '(Get-NetRoute | where {$$_.DestinationPrefix -eq '0.0.0.0/0'} | select { $$_.NextHop }' )
+#   UPSTREAM_DNS :=  $(shell powershell -command '(Get-NetRoute | where {$$_.DestinationPrefix -eq '0.0.0.0/0'} | select { $$_.NextHop }' )
 	else
-		UNAME_S := $(shell uname -s)
-		UPSTREAM_DNS = $(shell /sbin/ip route | awk '/default/ { print $$3 }')
+#   UPSTREAM_DNS = $(shell /sbin/ip route | awk '/default/ { print $$3 }')
 		ifeq ($(UNAME_S),Linux)
 				HOSTIP := $(shell ip route get 1 | head -1 | awk '{print $$7}' )
 		endif
