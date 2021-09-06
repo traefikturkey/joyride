@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     environment:
       - HOSTIP=${HOSTIP}
-      - UPSTREAM_DNS=${UPSTREAM_DNS}
+      #- UPSTREAM_DNS=${UPSTREAM_DNS}
     ports:
       - 54:54/udp
     volumes:
