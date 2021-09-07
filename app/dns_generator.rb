@@ -13,7 +13,7 @@ module Joyride
       Template.new("/etc/dnsmasq.conf", "/app/templates/dnsmasq.conf.erb", log).write_template()
 
       #start dnsmasq
-      log.info "Starting dnsmasq..."
+      log.info "Starting dnsmasq with HOSTIP=#{ENV['HOSTIP']}..."
       @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq" }
     end
 

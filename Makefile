@@ -7,9 +7,8 @@ export COMPOSE_DOCKER_CLI_BUILD := 1
 ifndef HOSTIP
 	ifeq ($(OS),Windows_NT)
 		HOSTIP := $(shell powershell -command '(Get-NetIPConfiguration | Where-Object {$$_.IPv4DefaultGateway -ne $$null -and $$_.NetAdapter.Status -ne "Disconnected"}).IPv4Address.IPAddress' )
-#   UPSTREAM_DNS :=  $(shell powershell -command '(Get-NetRoute | where {$$_.DestinationPrefix -eq '0.0.0.0/0'} | select { $$_.NextHop }' )
 	else
-#   UPSTREAM_DNS = $(shell /sbin/ip route | awk '/default/ { print $$3 }')
+		UNAME_S := $(shell uname -s)
 		ifeq ($(UNAME_S),Linux)
 				HOSTIP := $(shell ip route get 1 | head -1 | awk '{print $$7}' )
 		endif
@@ -20,7 +19,6 @@ ifndef HOSTIP
 endif
 
 export HOSTIP
-export UPSTREAM_DNS
 
 start: build
 	docker-compose up --force-recreate --remove-orphans -d
@@ -35,7 +33,6 @@ down:
 
 echo:
 	@echo "HOSTIP: $(HOSTIP)"
-	@echo "UPSTREAM_DNS: $(UPSTREAM_DNS)"
 	
 logs:
 	docker-compose logs -f
