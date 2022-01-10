@@ -8,5 +8,9 @@ domain-needed
 dns-loop-detect
 port=54
 log-facility=- 
-<% if ENV.fetch('JOYRIDE_LOG_QUERIES', 'false').downcase.eql?('true') %>log-queries<% end %>
-<% if ENV.fetch('JOYRIDE_LOG_DEBUG', 'false').downcase.eql?('true') %>log-debug<% end %>
+<% if ENV.fetch('JOYRIDE_LOG_QUERIES', 'false').downcase.eql?('true') %>
+log-queries
+<% end %>
+<% if ENV.fetch('JOYRIDE_LOG_DEBUG', 'false').downcase.eql?('true') %>
+log-debug
+<% end %>
