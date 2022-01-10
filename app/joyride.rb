@@ -27,7 +27,7 @@ define_singleton_method("generator") { generator }
 
 scheduler = Rufus::Scheduler.new
 
-scheduler.every '1s', :first => :now, :mutex => context.mutex do
+scheduler.every '3s', :first => :now, :mutex => context.mutex do
   Docker::Event.since(context.updated_at, until: Time.now.to_i) {|event| context.process_event(event)}
   
   if context.dirty?
