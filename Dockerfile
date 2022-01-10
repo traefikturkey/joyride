@@ -13,6 +13,7 @@ RUN \
     bash \
     dnsmasq \
     tzdata \
+    htop \
   && update-ca-certificates \
   && ln -snf /etc/localtime /usr/share/zoneinfo/$TZ && echo $TZ > /etc/timezone \
   && rm -rf \
