@@ -55,9 +55,9 @@ Joyride is exposed and runs on port 54 so as not to conflict with local systemd-
 On your pihole/dnsmasq server create the file /etc/dnsmasq.d/03-custom-dns-names.conf
 and put something like the following into that file:
 ```
-address=/example.com/192.168.1.2#54
+server=/example.com/192.168.1.2#54
 ```
-address=/\<domain\>/\<ip address of server running joyride\>#\<port number\> 
+server=/\<domain\>/\<ip address of server running joyride\>#\<port number\> 
 
 See [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) for addtional options and details.
 
