@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: ${ENV_CONTEXT:-production}
     image: ilude/joyride
     container_name: joyride
     restart: unless-stopped
