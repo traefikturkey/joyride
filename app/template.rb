@@ -11,7 +11,7 @@ module Joyride
     end
 
     def write_template(template_context={})
-      erb = ERB.new(File.open(template_path).read, 0, "<>")
+      erb = ERB.new(File.open(template_path).read)
       output = erb.result(TemplateContext.new(template_context).get_binding)
       File.write(output_path, output)
     rescue => ex
