@@ -5,7 +5,7 @@ LABEL maintainer="Mike Glenn <mglenn@ilude.com>"
 LABEL ilude-project=joyride
 
 RUN \
-  mkdir -p /app /etc \
+  mkdir -p /app /etc/hosts.d /etc/dnsmasq.d \
   && { \
   echo 'install: --no-document'; \
   echo 'update: --no-document'; \

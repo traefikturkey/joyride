@@ -2,12 +2,13 @@ no-dhcp-interface=eth0
 no-resolv
 no-poll
 no-hosts
-hostsdir=/etc/dnsmasq.d 
-keep-in-foreground 
+hostsdir=/etc/hosts.d
+addn-hosts=/etc/dnsmasq.d/hosts
+keep-in-foreground
 domain-needed
 dns-loop-detect
 port=54
-log-facility=- 
+log-facility=-
 <% if ENV.fetch('JOYRIDE_LOG_QUERIES', 'false').downcase.eql?('true') %>
 log-queries
 <% end %>
