@@ -60,3 +60,4 @@ jobs:
           details: Based on ${{ github.event.head_commit.url }}
           footer: MafenBot became self aware
           webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+          
