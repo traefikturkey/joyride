@@ -61,4 +61,4 @@ server=/\<domain\>/\<ip address of server running joyride\>#\<port number\>
 
 See [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) for addtional options and details.
 
-If you have questions, comments or suggestions, I hang out on [TechnoTim's](https://www.youtube.com/c/TechnoTimLive) discord server: [http://bit.ly/techno-tim-discord](http://bit.ly/techno-tim-discord)
+If you have questions, comments or suggestions, We hang out on [TechnoTim's](https://www.youtube.com/c/TechnoTimLive) discord server: [http://bit.ly/techno-tim-discord](http://bit.ly/techno-tim-discord)
