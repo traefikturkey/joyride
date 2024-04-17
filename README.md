@@ -1,5 +1,5 @@
 # Joyride
-### Dynamic DNS for docker containers
+## Dynamic DNS for docker containers
 
 Joyride watches for containers starting and stopping via docker events seen on /var/run/docker.sock and if they have the label joyride.host.name=host.example.com it will create a dns entry pointing to the $HOSTIP of the box that is running docker.
 
@@ -50,14 +50,14 @@ services:
 ***
 Joyride is exposed and runs on port 54 so as not to conflict with local systemd-resolv system. by default it does not forward dns request to another server, instead it is designed to have specific domain request forwarded to it by your main dns server on your network
 
-### For [pihole](https://pi-hole.net/) (or other dnsmasq based dns server)
+### For [PiHole](https://pi-hole.net/) : customize and run the following command on your pihole server
+#### this will also work for dnsmasq servers
 ***
-On your pihole/dnsmasq server create the file /etc/dnsmasq.d/03-custom-dns-names.conf
-and put something like the following into that file:
+```bash
+echo "server=/example.com/192.168.1.2#54" | sudo tee -a /etc/dnsmasq.d/03-custom-dns-names.conf
 ```
-server=/example.com/192.168.1.2#54
-```
-server=/\<domain\>/\<ip address of server running joyride\>#\<port number\> 
+#### example.com should be replaced with your domain
+#### 192.168.1.2 should be replaced with the ip address of the server where joyride is running
 
 See [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) for addtional options and details.
 
