@@ -47,18 +47,15 @@ services:
       - joyride.host.name=whoami.example.com
 ```
 ## How to use
-***
 Joyride is exposed and runs on port 54 so as not to conflict with local systemd-resolv system. by default it does not forward dns request to another server, instead it is designed to have specific domain request forwarded to it by your main dns server on your network
-
-### For [PiHole](https://pi-hole.net/) : customize and run the following command on your pihole server
-#### this will also work for dnsmasq servers
+***
+### [PiHole](https://pi-hole.net/) : customize and run the following command on your pihole server
+this will also work for [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) servers
 ***
 ```bash
 echo "server=/example.com/192.168.1.2#54" | sudo tee -a /etc/dnsmasq.d/03-custom-dns-names.conf
 ```
-#### example.com should be replaced with your domain
-#### 192.168.1.2 should be replaced with the ip address of the server where joyride is running
-
-See [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) for addtional options and details.
-
+#### example.com - replac with your domain
+#### 192.168.1.2 - replace with the ip address of the server where joyride is running
+***
 If you have questions, comments or suggestions, We hang out on [TechnoTim's](https://www.youtube.com/c/TechnoTimLive) discord server: [http://bit.ly/techno-tim-discord](http://bit.ly/techno-tim-discord)
