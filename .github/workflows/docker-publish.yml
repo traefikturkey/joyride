@@ -8,8 +8,7 @@ name: Build and Publish Docker Image
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
-    # Publish semver tags as releases.
+    branches: [ '**' ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'app/**/*'
@@ -17,7 +16,7 @@ on:
       - 'requirements.txt'
       - '.github/workflows/docker-publish.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
     types: [ closed ]
     paths:
       - 'app/**/*'
@@ -46,6 +45,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            ${{ github.repository }}
+            ghcr.io/${{ github.repository }}        
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
@@ -80,7 +94,7 @@ jobs:
           context: .
           target: production
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/${{ github.repository }}:latest,${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
