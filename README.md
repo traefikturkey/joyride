@@ -49,9 +49,7 @@ services:
 ## How to use
 Joyride is exposed and runs on port 54 so as not to conflict with local systemd-resolv system. by default it does not forward dns request to another server, instead it is designed to have specific domain request forwarded to it by your main dns server on your network
 ***
-### [PiHole](https://pi-hole.net/) : customize and run the following command on your pihole server
-this will also work for [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) servers
-***
+### [PiHole](https://pi-hole.net/) / [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) : Customize and run the following command on your pihole server
 ```bash
 echo "server=/example.com/192.168.1.2#54" | sudo tee -a /etc/dnsmasq.d/03-custom-dns-names.conf
 ```
