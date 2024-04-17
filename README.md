@@ -56,4 +56,6 @@ echo "server=/example.com/192.168.1.2#54" | sudo tee -a /etc/dnsmasq.d/03-custom
 #### example.com - replac with your domain
 #### 192.168.1.2 - replace with the ip address of the server where joyride is running
 ***
-If you have questions, comments or suggestions, We hang out on [TechnoTim's](https://www.youtube.com/c/TechnoTimLive) discord server: [http://bit.ly/techno-tim-discord](http://bit.ly/techno-tim-discord)
+If you have questions, comments or suggestions, We hang out on [TechnoTim's](https://www.youtube.com/c/TechnoTimLive) [discord server](http://bit.ly/techno-tim-discord)
+
+[Joyride](https://github.com/traefikturkey/joyride) is a [TraefikTurkey Project](https://github.com/traefikturkey) © 2024
