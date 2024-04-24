@@ -11,6 +11,9 @@ services:
     environment:
       - HOSTIP=${HOSTIP}
       #- UPSTREAM_DNS=${UPSTREAM_DNS}
+      - JOYRIDE_NXDOMAIN_ENABLED=${JOYRIDE_NXDOMAIN_ENABLED:-false}
+      - JOYRIDE_LOG_DEBUG=${JOYRIDE_LOG_DEBUG:-false}
+      - JOYRIDE_LOG_QUERIES=${JOYRIDE_LOG_QUERIES:-false}
     ports:
       - 54:54/udp
     volumes:
