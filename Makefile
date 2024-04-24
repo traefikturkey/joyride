@@ -23,37 +23,37 @@ export HOSTIP
 export UPSTREAM_DNS
 
 start: build
-	docker-compose up --force-recreate --remove-orphans -d
+	docker compose up --force-recreate --remove-orphans -d
 
 up: build 
-	docker-compose up --force-recreate --abort-on-container-exit --remove-orphans
+	docker compose up --force-recreate --abort-on-container-exit --remove-orphans
 
 restart: build down start
 
 down: 
-	docker-compose down
+	docker compose down
 
 echo:
 	@echo "HOSTIP: $(HOSTIP)"
 	@echo "UPSTREAM_DNS: $(UPSTREAM_DNS)"
 	
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 bash: build 
-	docker-compose run --rm joyride bash
+	docker compose run --rm joyride bash
 
 attach:
-	docker-compose exec joyride bash
+	docker compose exec joyride bash
 	
 build:
-	docker-compose build 
+	docker compose build 
 
 clean: 
-	docker-compose down --volumes --remove-orphans --rmi local
-	docker-compose rm -f
+	docker compose down --volumes --remove-orphans --rmi local
+	docker compose rm -f
 	-docker image rm -f $(shell docker image ls -q --filter label=ilude-project=joyride)
 	-rm Dockerfile
 
 test: build
-	docker-compose -f docker-compose.yml -f docker-compose.whoami.yml up --force-recreate --abort-on-container-exit --remove-orphans
+	docker compose -f docker compose.yml -f docker compose.whoami.yml up --force-recreate --abort-on-container-exit --remove-orphans

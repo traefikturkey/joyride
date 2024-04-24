@@ -15,4 +15,6 @@ log-queries
 <% if ENV.fetch('JOYRIDE_LOG_DEBUG', 'false').downcase.eql?('true') %>
 log-debug
 <% end %>
+<% if ENV.fetch('JOYRIDE_NXDOMAIN_ENABLED', 'false').downcase.eql?('true') %>
 address=/#/
+<% end %>
