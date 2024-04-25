@@ -5,16 +5,16 @@ LABEL maintainer="Mike Glenn <mglenn@ilude.com>"
 LABEL ilude-project=joyride
 
 RUN \
-  mkdir -p /app /etc/hosts.d /etc/dnsmasq.d \
-  && { \
-  echo 'install: --no-document'; \
-  echo 'update: --no-document'; \
-  } >> /etc/gemrc \
-  && apk add --no-cache \
-  bash \
-  dnsmasq \
-  shadow \
-  tzdata \
+  mkdir -p /app /etc/hosts.d /etc/dnsmasq.d && \
+  touch /etc/hosts.d/hosts && \
+  touch /etc/dnsmasq.d/hosts && \
+  echo 'install: --no-document' >> /etc/gemrc && \
+  echo 'update: --no-document' >> /etc/gemrc && \ 
+  apk add --no-cache \
+    bash \
+    dnsmasq \
+    shadow \
+    tzdata \
   && rm -rf \
     /usr/lib/ruby/gems/*/cache/* \
     /root/.gem/ \
