@@ -36,12 +36,8 @@ set -e
 exec $@
 EOF
 
-EXPOSE 54/udp
-EXPOSE 7946/tcp
-EXPOSE 7946/udp
-
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD [ "bundle", "exec", "ruby", "joyride.rb" ] 
+CMD [ "joyride" ] 
 
 ##############################
 # Begin builder
