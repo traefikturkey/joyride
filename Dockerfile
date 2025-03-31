@@ -37,7 +37,7 @@ exec $@
 EOF
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD [ "joyride" ] 
+CMD [ "$APP/joyride" ] 
 
 ##############################
 # Begin builder
