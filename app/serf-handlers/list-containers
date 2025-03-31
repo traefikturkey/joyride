@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup' # Set up gems listed in the Gemfile
+
+require 'docker'
+require 'json'
+require 'open3'
+
+HostnameLabel = "joyride.host.name"
+
+puts Docker::Container.all(all: true, filters: { status: ["running"], label: [HostnameLabel]  }.to_json)
+.map{|c| "#{ENV['HOSTIP']} #{c.info["Labels"][HostnameLabel]}"  }
+.uniq.to_json

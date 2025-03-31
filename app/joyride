@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup' # Set up gems listed in the Gemfile
+
+require 'docker'
+require 'erb'
+require 'json'
+require 'logger'
+require 'rufus-scheduler'
+require_relative 'template'
+
+# no buffering output
+$stdout.sync = true
+log = Logger.new($stdout)
+log.formatter = proc { |severity, datetime, progname, msg| "#{datetime}: #{msg}\n" }
+
+# write out basic dnsmasq.conf
+Joyride::Template.new("/etc/dnsmasq.conf", "/app/templates/dnsmasq.conf.erb", log).write_template()
+
+# start dnsmasq
+log.info "Starting dnsmasq..."
+dnsmasq_pid = fork { exec "/usr/sbin/dnsmasq" }
+log.info "dnsmasq started with PID #{dnsmasq_pid}"
+
+# start serf
+serf_pid = fork do
+  exec "serf agent -discover=joyride " +
+  "-event-handler=user:container-lifecycle=/app/serf-handlers/container-event " +
+  "-event-handler=query:list-containers=/app/serf-handlers/list-containers"
+end
+log.info "serf started with PID #{serf_pid}"
+
+scheduler = Rufus::Scheduler.new
+last_processed = nil
+
+scheduler.every '3s', :first => :now do
+  if last_processed.nil?
+    fire_serf_event = true
+  else
+    # check for container lifecycle events
+    fire_serf_event = false
+    Docker::Event.since(last_processed, until: Time.now.to_i) do |event|
+      fire_serf_event = event.type.eql?("container") && ["start", "stop", "die"].include?(event.action) && event.actor.attributes.has_key?("joyride.host.name")
+    end
+  end
+
+  # fire serf event if there are any container state changes we are interested in
+  `serf event container-lifecycle` if fire_serf_event
+
+  # update last_processed time
+  last_processed = Time.now.to_i
+end
+
+Kernel.trap( "INT" ) do
+  scheduler.shutdown
+  Process.kill("TERM", serf_pid)
+  Process.kill("TERM", dnsmasq_pid)
+  log.info "Joyride has ended!"
+end
+
+scheduler.join()

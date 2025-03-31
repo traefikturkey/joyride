@@ -1,8 +1,16 @@
 services:
-  whoami:
+  whoami-1:
     image: traefik/whoami
-    container_name: whoami
+    container_name: whoami-1
     ports:
-      - 80:80/tcp
+      - 8081:80/tcp
     labels:
-      - joyride.host.name=whoami.ilude.com
+      - joyride.host.name=whoami-1.ilude.com
+
+  whoami-2:
+    image: traefik/whoami
+    container_name: whoami-2
+    ports:
+      - 8082:80/tcp
+    labels:
+      - joyride.host.name=whoami-2.ilude.com

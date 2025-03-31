@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup' # Set up gems listed in the Gemfile
+
+require 'docker'
+require 'json'
+require 'open3'
+require 'logger'
+require 'benchmark'
+
+# Create a logger instance that writes to /tmp/containers.log
+log = Logger.new('/tmp/containers.log', File::WRONLY | File::APPEND | File::CREAT)
+log.formatter = proc do |severity, datetime, progname, msg|
+  "#{datetime}: #{msg}\n"
+end
+
+# fork to background process, this is fire and forget!
+pid = fork do
+  result = Benchmark.measure do
+    # Detach from the terminal session
+    Process.setsid
+
+    # Redirect standard input/output/error to /dev/null to avoid terminal interference
+    $stdin.reopen('/dev/null')
+    $stdout.reopen('/dev/null', 'w')
+    $stderr.reopen('/dev/null', 'w')
+
+    log.info "Receiving container-lifecycle event..."
+
+    output, _ = Open3.capture2("serf query list-containers")
+
+    # Extract relevant lines and parse as JSON arrays
+    combined_array = output.lines
+                          .grep(/^Response from /)                # Get only response lines
+                          .map { |line| line.split(': ', 2)[1] }  # Extract data after colon
+                          .map { |json_str| JSON.parse(json_str) rescue nil }  # Parse JSON, ignore errors
+                          .compact                                # Remove nil values if parsing fails
+
+    # Join all parsed arrays into one
+    final_array = combined_array.flatten
+
+    # Write output to /etc/dnsmasq.d/hosts
+    File.open('/etc/dnsmasq.d/hosts', 'w') do |file|
+      final_array.each { |line| file.puts(line) }
+    end
+    log.info "Updated /etc/dnsmasq.d/hosts with #{final_array.length} lines"
+
+    # check for file /var/run/dnsmasq.pid
+    if File.exist?('/var/run/dnsmasq.pid')
+      log.info "Signaling dnsmasq to reload configuration... "
+      Process.kill("HUP", File.read('/var/run/dnsmasq.pid').to_i)
+    end
+
+  end # end benchmarking
+  log.info "Processed container-lifecycle event in #{result.real.round(6)} seconds"
+end
+
+puts "Processing container-lifecycle event in PID #{pid}"
+Process.detach(pid)  # Ensure the parent doesn't wait for the child process

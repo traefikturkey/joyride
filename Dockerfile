@@ -27,7 +27,7 @@ ENV GEM_HOME /gems
 
 WORKDIR $APP
 
-ENV SERF_HANDLER_CONFIG $APP/serf-handlers
+ENV SERF_HANDLER_CONFIG $APP
 
 COPY --chmod=755 <<-"EOF" /usr/local/bin/docker-entrypoint.sh
 #!/bin/sh
