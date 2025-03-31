@@ -27,6 +27,8 @@ ENV GEM_HOME /gems
 
 WORKDIR $APP
 
+ENV SERF_HANDLER_CONFIG $APP/serf-handlers
+
 COPY --chmod=755 <<-"EOF" /usr/local/bin/docker-entrypoint.sh
 #!/bin/sh
 set -e
@@ -35,9 +37,11 @@ exec $@
 EOF
 
 EXPOSE 54/udp
+EXPOSE 7946/tcp
+EXPOSE 7946/udp
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD [ "bundle", "exec", "ruby", "joyride.rb" ]
+CMD [ "bundle", "exec", "ruby", "joyride.rb" ] 
 
 ##############################
 # Begin builder
@@ -52,10 +56,16 @@ COPY ./app/Gemfile $APP
 #COPY ./app/Gemfile.lock $APP
 RUN bundle install
 
+RUN wget https://releases.hashicorp.com/serf/0.8.2/serf_0.8.2_linux_amd64.zip -O /tmp/serf_0.8.2_linux_amd64.zip && \
+    unzip /tmp/serf_0.8.2_linux_amd64.zip -d /usr/local/bin
+
+
 ##############################
 # Begin production 
 ##############################
 FROM base AS production
 
 COPY --from=builder ${GEM_HOME} ${GEM_HOME}
+COPY --from=builder /usr/local/bin/serf /usr/local/bin
 COPY ./app $APP
+

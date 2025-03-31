@@ -19,6 +19,13 @@ locator = {}
 log = Logger.new($stdout)
 log.formatter = proc { |severity, datetime, progname, msg| "#{msg}\n" }
 
+log.info "Started serf..."
+log.debug ENV['HOSTIP']
+serf_process = fork do
+  ENV["SERF_HANDLER_CONFIG"] = File.join(Dir.pwd, "serf-handlers")  # Set environment variable
+  exec "serf agent -profile=wan -join=192.168.16.115 -advertise=#{ENV['HOSTIP']}:7946 -bind=0.0.0.0:7946 -event-handler=/gems/bin/serf-handler"
+end
+
 file_path = "/etc/hosts.d/hosts"
 begin
   File.new(file_path, "w") if !File.exist?(file_path)
@@ -45,6 +52,7 @@ end
 
 Kernel.trap( "INT" ) do
   scheduler.shutdown
+  Process.kill("TERM", serf_process)
   log.info "Joyride has ended!"
 end
 

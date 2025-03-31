@@ -6,7 +6,7 @@ export COMPOSE_DOCKER_CLI_BUILD := 1
 
 ifndef HOSTIP
 	ifeq ($(OS),Windows_NT)
-		HOSTIP := $(shell powershell -command '(Get-NetIPConfiguration | Where-Object {$$_.IPv4DefaultGateway -ne $$null -and $$_.NetAdapter.Status -ne "Disconnected"}).IPv4Address.IPAddress' )
+		HOSTIP := $(shell powershell -noprofile -command '(Get-NetIPConfiguration | Where-Object {$$_.IPv4DefaultGateway -ne $$null -and $$_.NetAdapter.Status -ne "Disconnected"}).IPv4Address.IPAddress' )
 #   UPSTREAM_DNS :=  $(shell powershell -command '(Get-NetRoute | where {$$_.DestinationPrefix -eq '0.0.0.0/0'} | select { $$_.NextHop }' )
 	else
 #   UPSTREAM_DNS = $(shell /sbin/ip route | awk '/default/ { print $$3 }')
@@ -42,6 +42,9 @@ logs:
 
 bash: build 
 	docker compose run --rm joyride bash
+
+serf: build
+	docker compose run --rm joyride serf agent -advertise=$(HOSTIP):7946 -log-level=debug
 
 attach:
 	docker compose exec joyride bash
