@@ -24,6 +24,7 @@ log.debug ENV['HOSTIP']
 serf_process = fork do
   ENV["SERF_HANDLER_CONFIG"] = File.join(Dir.pwd, "serf-handlers")  # Set environment variable
   exec "serf agent -profile=wan -join=192.168.16.115 -advertise=#{ENV['HOSTIP']}:7946 -bind=0.0.0.0:7946 -event-handler=/gems/bin/serf-handler"
+  # serf agent -profile=wan -join=192.168.16.115 -advertise=${HOSTIP}:7946 -bind=0.0.0.0:7946 -event-handler=/gems/bin/serf-handler
 end
 
 file_path = "/etc/hosts.d/hosts"
