@@ -45,6 +45,8 @@ pid = fork do
       final_array << "#{ENV['HOSTIP']} #{ENV['JOYRIDE_HOSTNAME']}"
     end
 
+    final_array.uniq!
+
     # Write output to /etc/dnsmasq.d/hosts
     File.open('/etc/dnsmasq.d/hosts', 'w') do |file|
       final_array.each { |line| file.puts(line) }
