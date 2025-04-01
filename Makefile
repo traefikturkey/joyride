@@ -20,16 +20,30 @@ endif
 
 export HOSTIP
 
+# check if we should use podman compose or docker compose
+# no one should be using docker-compose anymore
+ifeq (, $(shell which podman))
+	DOCKER_COMMAND := docker
+	DOCKER_SOCKET := /var/run/docker.sock
+else
+	DOCKER_COMMAND := podman
+	DOCKER_SOCKET := $(XDG_RUNTIME_DIR)/podman/podman.sock
+endif
+
+export DOCKER_COMPOSE
+export DOCKER_COMMAND
+export DOCKER_SOCKET
+
 start: build
-	docker compose up --force-recreate --remove-orphans -d
+	$(DOCKER_COMMAND) compose up --force-recreate --remove-orphans -d
 
 up: build 
-	docker compose up --force-recreate --abort-on-container-exit --remove-orphans
+	$(DOCKER_COMMAND) compose up --force-recreate --abort-on-container-exit --remove-orphans
 
 restart: build down start
 
 down: 
-	docker compose down
+	$(DOCKER_COMMAND) compose down
 
 echo:
 	@echo "OS: $(OS)"
@@ -37,28 +51,27 @@ echo:
 	@echo "UPSTREAM_DNS: $(UPSTREAM_DNS)"
 	
 logs:
-	docker compose logs -f
+	$(DOCKER_COMMAND) compose logs -f
 
 bash: build 
-	docker compose run --rm joyride bash
+	$(DOCKER_COMMAND) compose run --rm joyride bash
 
 serf: build
-	docker compose run --rm joyride serf agent -advertise=$(HOSTIP):7946 -log-level=debug
+	$(DOCKER_COMMAND) compose run --rm joyride serf agent -advertise=$(HOSTIP):7946 -log-level=debug
 
 attach:
-	docker compose exec joyride bash
+	$(DOCKER_COMMAND) compose exec joyride bash
 	
 build:
-	docker compose build 
+	$(DOCKER_COMMAND) compose build 
 
 clean: 
-	docker compose down --volumes --remove-orphans --rmi local
-	docker compose rm -f
-	-docker image rm -f $(shell docker image ls -q --filter label=ilude-project=joyride)
-	-rm Dockerfile
+	$(DOCKER_COMMAND) compose down --volumes --remove-orphans --rmi local
+	$(DOCKER_COMMAND) compose rm -f
+	-$(DOCKER_COMMAND) image rm -f $(shell docker image ls -q --filter label=ilude-project=joyride)
 
 test: build
-	docker compose -f docker-compose.yml -f docker-compose.whoami.yml up --force-recreate --abort-on-container-exit --remove-orphans
+	$(DOCKER_COMMAND) compose -f docker-compose.yml -f docker-compose.whoami.yml up --force-recreate --abort-on-container-exit --remove-orphans
 
 whoami: 
-	docker compose -f docker-compose.whoami.yml up --force-recreate --abort-on-container-exit --remove-orphans
+	$(DOCKER_COMMAND) compose -f docker-compose.whoami.yml up --force-recreate --abort-on-container-exit --remove-orphans

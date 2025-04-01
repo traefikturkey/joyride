@@ -27,16 +27,6 @@ ENV GEM_HOME /gems
 
 WORKDIR $APP
 
-ENV SERF_HANDLER_CONFIG $APP
-
-COPY --chmod=755 <<-"EOF" /usr/local/bin/docker-entrypoint.sh
-#!/bin/sh
-set -e
-
-exec $@
-EOF
-
-ENTRYPOINT ["docker-entrypoint.sh"]
 CMD [ "./joyride" ] 
 
 ##############################

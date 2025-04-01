@@ -1,6 +1,5 @@
 services:
   joyride:
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./app:/app
     #command: serf agent -advertise=${HOSTIP} -log-level=trace

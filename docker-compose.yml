@@ -21,6 +21,6 @@ services:
     #   - 7946:7946/udp
     #   - 7946:7946/tcp
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock:ro
     labels:
       - autoheal=true
