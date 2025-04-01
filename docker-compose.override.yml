@@ -2,4 +2,3 @@ services:
   joyride:
     volumes:
       - ./app:/app
-    #command: serf agent -advertise=${HOSTIP} -log-level=trace
