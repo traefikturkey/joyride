@@ -40,6 +40,11 @@ pid = fork do
     # Join all parsed arrays into one
     final_array = combined_array.flatten
 
+    # include the joyride hostname in the dns records if JOYRIDE_HOSTNAME_DNS_ENTRY is true
+    if ENV['JOYRIDE_HOSTNAME'] && ENV.fetch('JOYRIDE_HOSTNAME_DNS_ENTRY', 'false').chomp.downcase.eql?('true')
+      final_array << "#{ENV['HOSTIP']} #{ENV['JOYRIDE_HOSTNAME']}"
+    end
+
     # Write output to /etc/dnsmasq.d/hosts
     File.open('/etc/dnsmasq.d/hosts', 'w') do |file|
       final_array.each { |line| file.puts(line) }
