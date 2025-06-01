@@ -14,12 +14,12 @@ module Joyride
 
       #start dnsmasq
       log.info "Starting dnsmasq..."
-      # @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq" }
-      if ENV.key?('DNS_OPTION' == "true")
-        @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq --filter-AAAA" }
-      else
-        @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq" }
-      end
+      @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq" }
+      # if ENV.key?('DNS_OPTION' == "true")
+      #   @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq --filter-AAAA" }
+      # else
+      #   @dnsmasq_process = fork { exec "/usr/sbin/dnsmasq" }
+      # end
     end
 
     def process(context)
