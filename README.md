@@ -19,7 +19,6 @@ dig localhost#54 whoami.example.com
 
 docker-compose.yml
 ```
-version: '2.4'
 services:
   joyride:
     image: ghcr.io/ilude/joyride:latest
@@ -36,7 +35,6 @@ services:
 
 docker-compose.whoami.yml
 ```
-version: '2.4'
 services:
   whoami:
     image: traefik/whoami
@@ -63,7 +61,6 @@ docker run -e HOSTIP=$HOSTIP -e JOYRIDE_ENABLE_SERF=true ghcr.io/ilude/joyride
 
 Or in docker-compose.yml:
 ```yaml
-version: '2.4'
 services:
   joyride:
     image: ghcr.io/ilude/joyride:latest
