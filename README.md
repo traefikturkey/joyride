@@ -46,6 +46,39 @@ services:
     labels:
       - joyride.host.name=whoami.example.com
 ```
+
+## Serf Integration (Optional)
+Joyride can optionally integrate with [Serf](https://www.serf.io/) for distributed container discovery and coordination. When enabled, Joyride will:
+
+- Start a Serf agent that can discover other Joyride instances on the network
+- Handle container lifecycle events across multiple nodes
+- Provide query handlers for listing containers across the cluster
+
+### Enabling Serf
+To enable Serf integration, set the `JOYRIDE_ENABLE_SERF` environment variable to `true`:
+
+```bash
+docker run -e HOSTIP=$HOSTIP -e JOYRIDE_ENABLE_SERF=true ghcr.io/ilude/joyride
+```
+
+Or in docker-compose.yml:
+```yaml
+version: '2.4'
+services:
+  joyride:
+    image: ghcr.io/ilude/joyride:latest
+    restart: unless-stopped
+    environment:
+      - HOSTIP=${HOSTIP}
+      - JOYRIDE_ENABLE_SERF=true
+    ports:
+      - 54:54/udp
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+**Note:** Serf is disabled by default. Joyride will work perfectly fine for single-node setups without Serf enabled.
+
 ## How to use
 Joyride is exposed and runs on port 54 so as not to conflict with local systemd-resolv system. by default it does not forward dns request to another server, instead it is designed to have specific domain request forwarded to it by your main dns server on your network
 ***
