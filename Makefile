@@ -75,6 +75,9 @@ start: build
 up: build 
 	$(DOCKER_COMMAND) compose up --force-recreate --abort-on-container-exit --remove-orphans
 
+production:  
+	$(DOCKER_COMMAND) compose -f docker-compose.production.yml up --force-recreate --abort-on-container-exit --remove-orphans	
+
 restart: build down start
 
 down: 
