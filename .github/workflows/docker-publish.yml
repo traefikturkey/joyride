@@ -11,7 +11,7 @@ on:
       - 'requirements.txt'
       - '.github/workflows/docker-publish.yml'
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
     types: [ closed ]
     paths:
       - 'app/**/*'
