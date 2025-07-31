@@ -39,7 +39,7 @@ RUN apk --no-cache add \
   git
 
 COPY ./app/Gemfile $APP
-#COPY ./app/Gemfile.lock $APP
+COPY ./app/Gemfile.lock $APP
 RUN bundle install
 
 RUN wget https://releases.hashicorp.com/serf/0.8.2/serf_0.8.2_linux_amd64.zip -O /tmp/serf_0.8.2_linux_amd64.zip && \
