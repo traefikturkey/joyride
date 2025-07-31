@@ -23,13 +23,18 @@ log.info "Starting dnsmasq..."
 dnsmasq_pid = fork { exec "/usr/sbin/dnsmasq" }
 log.info "dnsmasq started with PID #{dnsmasq_pid}"
 
-# start serf
-serf_pid = fork do
-  exec "serf agent -discover=joyride " +
-  "-event-handler=user:container-lifecycle=/app/serf-handlers/container-event " +
-  "-event-handler=query:list-containers=/app/serf-handlers/list-containers"
+# start serf only if enabled
+serf_pid = nil
+if ENV['JOYRIDE_ENABLE_SERF'] == 'true'
+  serf_pid = fork do
+    exec "serf agent -discover=joyride " +
+    "-event-handler=user:container-lifecycle=/app/serf-handlers/container-event " +
+    "-event-handler=query:list-containers=/app/serf-handlers/list-containers"
+  end
+  log.info "serf started with PID #{serf_pid}"
+else
+  log.info "serf disabled (JOYRIDE_ENABLE_SERF not set to 'true')"
 end
-log.info "serf started with PID #{serf_pid}"
 
 scheduler = Rufus::Scheduler.new
 last_processed = nil
@@ -45,8 +50,8 @@ scheduler.every '3s', :first => :now do
     end
   end
 
-  # fire serf event if there are any container state changes we are interested in
-  `serf event container-lifecycle` if fire_serf_event
+  # fire serf event if there are any container state changes we are interested in and serf is enabled
+  `serf event container-lifecycle` if fire_serf_event && !serf_pid.nil?
 
   # update last_processed time
   last_processed = Time.now.to_i
@@ -54,7 +59,7 @@ end
 
 Kernel.trap( "INT" ) do
   scheduler.shutdown
-  Process.kill("TERM", serf_pid)
+  Process.kill("TERM", serf_pid) unless serf_pid.nil?
   Process.kill("TERM", dnsmasq_pid)
   log.info "Joyride has ended!"
 end
