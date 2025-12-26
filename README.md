@@ -53,9 +53,10 @@ Joyride is exposed and runs on port 54 so as not to conflict with local systemd-
 ```bash
 echo "server=/example.com/192.168.1.2#54" | sudo tee -a /etc/dnsmasq.d/03-custom-dns-names.conf
 ```
-#### example.com - replac with your domain
+#### example.com - replace with your domain
 #### 192.168.1.2 - replace with the ip address of the server where joyride is running
 ***
 If you have questions, comments or suggestions, We hang out on [TechnoTim's](https://www.youtube.com/c/TechnoTimLive) [discord server](http://bit.ly/techno-tim-discord)
 
 [Joyride](https://github.com/traefikturkey/joyride) is a [TraefikTurkey Project](https://github.com/traefikturkey) © 2024
+
