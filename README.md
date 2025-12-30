@@ -4,11 +4,20 @@ A CoreDNS plugin that provides DNS resolution for Docker containers. Drop-in rep
 
 ## Quick Start
 
-```bash
-# Set your host IP
-export HOST_IP=192.168.16.61
+Using the pre-built image:
 
-# Run with Docker Compose
+```bash
+docker run -d --name coredns-docker \
+  -p 54:54/udp -p 54:54/tcp -p 8080:8080 \
+  -e HOST_IP=192.168.16.61 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  ghcr.io/traefikturkey/joyride:coredns
+```
+
+Or build locally with Docker Compose:
+
+```bash
+export HOST_IP=192.168.16.61
 docker compose up -d
 ```
 
@@ -86,14 +95,14 @@ docker run -d --network host \
   -e CLUSTER_ENABLED=true \
   -e NODE_NAME=node1 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  coredns-docker-cluster
+  ghcr.io/traefikturkey/joyride:coredns
 
 # Node 2 (automatically finds Node 1 via broadcast)
 docker run -d --network host \
   -e CLUSTER_ENABLED=true \
   -e NODE_NAME=node2 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  coredns-docker-cluster
+  ghcr.io/traefikturkey/joyride:coredns
 ```
 
 **Note:** Host networking enables:
