@@ -43,7 +43,7 @@
     errors
 
     # Health check endpoint (default port 5454, avoids conflict with Unifi 8080)
-    health :{$HEALTH_PORT:5454}
+    health 0.0.0.0:{$HEALTH_PORT:5454}
 
     # Prometheus metrics at :9153/metrics
     prometheus :9153
@@ -73,6 +73,6 @@
 #     forward . {$DNS_UPSTREAM:8.8.8.8 1.1.1.1}
 #
 #     errors
-#     health :{$HEALTH_PORT:5454}
+#     health 0.0.0.0:{$HEALTH_PORT:5454}
 #     prometheus :9153
 # }

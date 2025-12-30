@@ -32,6 +32,6 @@
     }
 
     errors
-    health :{$HEALTH_PORT:5454}
+    health 0.0.0.0:{$HEALTH_PORT:5454}
     prometheus :9153
 }
