@@ -1,0 +1,181 @@
+# Multi-node cluster integration test
+# Tests SWIM gossip protocol for DNS record synchronization
+#
+# Usage: docker compose -f docker-compose.cluster-test.yml up --build --abort-on-container-exit
+
+services:
+  # Node 1 - First cluster node (no seeds, starts standalone)
+  coredns-node1:
+    build: .
+    container_name: coredns-node1
+    user: root
+    ports:
+      - "54:54/udp"
+    environment:
+      - HOST_IP=10.10.0.11
+      - NODE_NAME=node1
+      - CLUSTER_ENABLED=true
+      - CLUSTER_PORT=7946
+      - CLUSTER_BIND_ADDR=0.0.0.0
+      # Node1 starts first with no seeds (bootstrap node)
+      - CLUSTER_SEEDS=
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./Corefile.cluster:/etc/coredns/Corefile:ro
+    networks:
+      cluster-net:
+        ipv4_address: 10.10.0.11
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # Node 2 - Joins via node1
+  coredns-node2:
+    build: .
+    container_name: coredns-node2
+    user: root
+    environment:
+      - HOST_IP=10.10.0.12
+      - NODE_NAME=node2
+      - CLUSTER_ENABLED=true
+      - CLUSTER_PORT=7946
+      - CLUSTER_BIND_ADDR=0.0.0.0
+      - CLUSTER_SEEDS=10.10.0.11:7946
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./Corefile.cluster:/etc/coredns/Corefile:ro
+    networks:
+      cluster-net:
+        ipv4_address: 10.10.0.12
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      coredns-node1:
+        condition: service_healthy
+
+  # Node 3 - Joins via node1 and node2
+  coredns-node3:
+    build: .
+    container_name: coredns-node3
+    user: root
+    environment:
+      - HOST_IP=10.10.0.13
+      - NODE_NAME=node3
+      - CLUSTER_ENABLED=true
+      - CLUSTER_PORT=7946
+      - CLUSTER_BIND_ADDR=0.0.0.0
+      - CLUSTER_SEEDS=10.10.0.11:7946,10.10.0.12:7946
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./Corefile.cluster:/etc/coredns/Corefile:ro
+    networks:
+      cluster-net:
+        ipv4_address: 10.10.0.13
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      coredns-node2:
+        condition: service_healthy
+
+  # Test container on node1 network - will be discovered by node1
+  test-app-node1:
+    image: nginx:alpine
+    container_name: test-app-node1
+    labels:
+      - "coredns.host.name=app-from-node1.example.com"
+    networks:
+      cluster-net:
+        ipv4_address: 10.10.0.101
+    depends_on:
+      coredns-node3:
+        condition: service_healthy
+
+  # Cluster tester - queries all 3 nodes to verify record synchronization
+  cluster-tester:
+    image: alpine:3.20
+    container_name: cluster-tester
+    command: >
+      sh -c "
+        apk add --no-cache bind-tools &&
+        echo '=== Waiting for cluster sync and container registration ===' &&
+        sleep 15 &&
+        echo '' &&
+
+        echo '=== Test 1: Query Node1 for app-from-node1.example.com ===' &&
+        RESULT1=\$$(dig @10.10.0.11 -p 54 app-from-node1.example.com +short) &&
+        echo \"Node1 response: \$$RESULT1\" &&
+        if [ -z \"\$$RESULT1\" ]; then
+          echo 'FAIL: Node1 did not return record'
+          exit 1
+        fi &&
+        echo 'PASS: Node1 has the record' &&
+        echo '' &&
+
+        echo '=== Test 2: Query Node2 for app-from-node1.example.com (gossip test) ===' &&
+        RESULT2=\$$(dig @10.10.0.12 -p 54 app-from-node1.example.com +short) &&
+        echo \"Node2 response: \$$RESULT2\" &&
+        if [ -z \"\$$RESULT2\" ]; then
+          echo 'FAIL: Node2 did not receive gossip'
+          exit 1
+        fi &&
+        echo 'PASS: Node2 received the record via gossip' &&
+        echo '' &&
+
+        echo '=== Test 3: Query Node3 for app-from-node1.example.com (gossip test) ===' &&
+        RESULT3=\$$(dig @10.10.0.13 -p 54 app-from-node1.example.com +short) &&
+        echo \"Node3 response: \$$RESULT3\" &&
+        if [ -z \"\$$RESULT3\" ]; then
+          echo 'FAIL: Node3 did not receive gossip'
+          exit 1
+        fi &&
+        echo 'PASS: Node3 received the record via gossip' &&
+        echo '' &&
+
+        echo '=== Test 4: All nodes return same IP ===' &&
+        if [ \"\$$RESULT1\" != \"\$$RESULT2\" ] || [ \"\$$RESULT2\" != \"\$$RESULT3\" ]; then
+          echo \"FAIL: Responses differ - Node1=\$$RESULT1 Node2=\$$RESULT2 Node3=\$$RESULT3\"
+          exit 1
+        fi &&
+        echo \"PASS: All nodes return same IP: \$$RESULT1\" &&
+        echo '' &&
+
+        echo '=== Test 5: Unknown domain gets no response (split DNS) ===' &&
+        echo 'Querying unknown.example.com on all nodes...' &&
+        timeout 3 dig @10.10.0.11 -p 54 unknown.example.com +short +tries=1 +time=2 || echo 'Node1: No response (expected)' &&
+        timeout 3 dig @10.10.0.12 -p 54 unknown.example.com +short +tries=1 +time=2 || echo 'Node2: No response (expected)' &&
+        timeout 3 dig @10.10.0.13 -p 54 unknown.example.com +short +tries=1 +time=2 || echo 'Node3: No response (expected)' &&
+        echo 'PASS: All nodes correctly drop unknown queries' &&
+        echo '' &&
+
+        echo '========================================' &&
+        echo '=== ALL CLUSTER TESTS PASSED ===' &&
+        echo '========================================'
+      "
+    networks:
+      cluster-net:
+        ipv4_address: 10.10.0.200
+    depends_on:
+      - coredns-node1
+      - coredns-node2
+      - coredns-node3
+      - test-app-node1
+
+networks:
+  cluster-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.0.0/24
+          gateway: 10.10.0.1

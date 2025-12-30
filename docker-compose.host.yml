@@ -1,0 +1,43 @@
+# Host networking mode for clustering with broadcast discovery
+# Use this when running multiple CoreDNS nodes that need to find each other automatically
+#
+# Usage: docker compose -f docker-compose.host.yml up -d
+#
+# Note: HOST_IP is auto-detected from the default route when using host networking
+
+services:
+  coredns:
+    build: .
+    container_name: coredns-docker-cluster
+    restart: unless-stopped
+    network_mode: host
+    # Entrypoint starts as root to fix Docker socket permissions,
+    # then drops to non-root 'coredns' user via su-exec
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # HOST_IP is auto-detected when using host networking
+      # Uncomment to override: HOST_IP=192.168.16.61
+      - CLUSTER_ENABLED=true
+      - NODE_NAME=${NODE_NAME:-node1}
+      # No CLUSTER_SEEDS needed - nodes find each other via UDP broadcast
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./Corefile.cluster:/etc/coredns/Corefile:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

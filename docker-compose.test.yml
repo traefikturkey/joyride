@@ -1,0 +1,101 @@
+services:
+  coredns:
+    build: .
+    container_name: coredns-test
+    user: root
+    ports:
+      - "54:54/udp"
+      - "54:54/tcp"
+      - "8080:8080"
+    environment:
+      - HOST_IP=192.168.1.100
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./Corefile:/etc/coredns/Corefile:ro
+    networks:
+      - test-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  # Test container with coredns.host.name label
+  test-app-coredns:
+    image: nginx:alpine
+    container_name: test-app-coredns
+    labels:
+      - "coredns.host.name=test-coredns.example.com"
+    networks:
+      - test-net
+    depends_on:
+      coredns:
+        condition: service_healthy
+
+  # Test container with joyride.host.name label (backward compatibility)
+  test-app-joyride:
+    image: nginx:alpine
+    container_name: test-app-joyride
+    labels:
+      - "joyride.host.name=test-joyride.example.com"
+    networks:
+      - test-net
+    depends_on:
+      coredns:
+        condition: service_healthy
+
+  # Test container with multiple hostnames (comma-separated)
+  test-app-multi:
+    image: nginx:alpine
+    container_name: test-app-multi
+    labels:
+      - "coredns.host.name=app1.example.com,app2.example.com,app3.example.com"
+    networks:
+      - test-net
+    depends_on:
+      coredns:
+        condition: service_healthy
+
+  # DNS tester container
+  dns-tester:
+    image: alpine:3.20
+    container_name: dns-tester
+    command: >
+      sh -c "
+        apk add --no-cache bind-tools &&
+        echo '=== Waiting for containers to register ===' &&
+        sleep 10 &&
+        echo '' &&
+        echo '=== Test 1: Container with coredns.host.name label ===' &&
+        dig @coredns -p 54 test-coredns.example.com +short &&
+        echo '' &&
+        echo '=== Test 2: Container with joyride.host.name label (backward compat) ===' &&
+        dig @coredns -p 54 test-joyride.example.com +short &&
+        echo '' &&
+        echo '=== Test 3: Multiple hostnames (comma-separated) ===' &&
+        dig @coredns -p 54 app1.example.com +short &&
+        dig @coredns -p 54 app2.example.com +short &&
+        dig @coredns -p 54 app3.example.com +short &&
+        echo '' &&
+        echo '=== Test 4: Unknown domain gets no response (split DNS) ===' &&
+        echo 'Expecting timeout (no response)...' &&
+        timeout 3 dig @coredns -p 54 www.google.com +short +tries=1 +time=2 || echo 'No response (expected for split DNS)' &&
+        echo '' &&
+        echo '=== Test 5: Non-existent local domain gets no response ===' &&
+        echo 'Expecting timeout (no response)...' &&
+        timeout 3 dig @coredns -p 54 nonexistent.example.com +short +tries=1 +time=2 || echo 'No response (expected)' &&
+        echo '' &&
+        echo '=== All tests completed ==='
+      "
+    networks:
+      - test-net
+    depends_on:
+      - coredns
+      - test-app-coredns
+      - test-app-joyride
+      - test-app-multi
+
+networks:
+  test-net:
+    driver: bridge

@@ -1,0 +1,437 @@
+package dockercluster
+
+import (
+	"testing"
+
+	"github.com/coredns/caddy"
+)
+
+func TestSetupMinimalConfig(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.Watcher == nil {
+		t.Error("expected watcher to be created")
+	}
+	if dc.Records == nil {
+		t.Error("expected records to be created")
+	}
+	if dc.TTL != 60 {
+		t.Errorf("expected default TTL 60, got %d", dc.TTL)
+	}
+}
+
+func TestSetupMissingHostIP(t *testing.T) {
+	input := `docker-cluster {
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Error("expected error for missing host_ip")
+	}
+}
+
+func TestSetupWithDockerSocket(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		docker_socket tcp://docker:2375
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.Watcher.dockerSocket != "tcp://docker:2375" {
+		t.Errorf("expected tcp://docker:2375, got %s", dc.Watcher.dockerSocket)
+	}
+}
+
+func TestSetupWithCustomLabels(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		label custom.label.one custom.label.two
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(dc.Watcher.labels) != 2 {
+		t.Fatalf("expected 2 labels, got %d", len(dc.Watcher.labels))
+	}
+	if dc.Watcher.labels[0] != "custom.label.one" {
+		t.Errorf("expected custom.label.one, got %s", dc.Watcher.labels[0])
+	}
+	if dc.Watcher.labels[1] != "custom.label.two" {
+		t.Errorf("expected custom.label.two, got %s", dc.Watcher.labels[1])
+	}
+}
+
+func TestSetupWithDefaultLabels(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(dc.Watcher.labels) != 2 {
+		t.Fatalf("expected 2 default labels, got %d", len(dc.Watcher.labels))
+	}
+	if dc.Watcher.labels[0] != "coredns.host.name" {
+		t.Errorf("expected coredns.host.name, got %s", dc.Watcher.labels[0])
+	}
+	if dc.Watcher.labels[1] != "joyride.host.name" {
+		t.Errorf("expected joyride.host.name, got %s", dc.Watcher.labels[1])
+	}
+}
+
+func TestSetupWithTTL(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		ttl 300
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.TTL != 300 {
+		t.Errorf("expected TTL 300, got %d", dc.TTL)
+	}
+}
+
+func TestSetupWithInvalidTTL(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		ttl notanumber
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Error("expected error for invalid TTL")
+	}
+}
+
+func TestSetupWithFallthrough(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		fallthrough
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// fallthrough with no zones means fall through for all
+	if !dc.Fall.Through("anything.") {
+		t.Error("expected fallthrough to be enabled for all zones")
+	}
+}
+
+func TestSetupWithUnknownProperty(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		unknown_property value
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Error("expected error for unknown property")
+	}
+}
+
+func TestSetupFullConfig(t *testing.T) {
+	input := `docker-cluster {
+		docker_socket unix:///custom/docker.sock
+		host_ip 10.0.0.1
+		label my.custom.label
+		ttl 120
+		fallthrough
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.Watcher.dockerSocket != "unix:///custom/docker.sock" {
+		t.Errorf("wrong docker_socket: %s", dc.Watcher.dockerSocket)
+	}
+	if dc.Watcher.hostIP != "10.0.0.1" {
+		t.Errorf("wrong host_ip: %s", dc.Watcher.hostIP)
+	}
+	if len(dc.Watcher.labels) != 1 || dc.Watcher.labels[0] != "my.custom.label" {
+		t.Errorf("wrong labels: %v", dc.Watcher.labels)
+	}
+	if dc.TTL != 120 {
+		t.Errorf("wrong TTL: %d", dc.TTL)
+	}
+	if !dc.Fall.Through("test.") {
+		t.Error("expected fallthrough to be enabled")
+	}
+}
+
+func TestSetupWithUnknownActionDrop(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		unknown_action drop
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.UnknownAction != ActionDrop {
+		t.Errorf("expected ActionDrop, got %d", dc.UnknownAction)
+	}
+}
+
+func TestSetupWithUnknownActionNXDomain(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		unknown_action nxdomain
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.UnknownAction != ActionNXDomain {
+		t.Errorf("expected ActionNXDomain, got %d", dc.UnknownAction)
+	}
+}
+
+func TestSetupWithInvalidUnknownAction(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		unknown_action invalid
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Error("expected error for invalid unknown_action")
+	}
+}
+
+func TestSetupDefaultUnknownAction(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Default should be ActionDrop for split DNS setups
+	if dc.UnknownAction != ActionDrop {
+		t.Errorf("expected default ActionDrop, got %d", dc.UnknownAction)
+	}
+}
+
+func TestSetupClusterDisabledByDefault(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.ClusterConfig == nil {
+		t.Fatal("expected ClusterConfig to be initialized")
+	}
+	if dc.ClusterConfig.Enabled {
+		t.Error("expected cluster to be disabled by default")
+	}
+	if dc.ClusterConfig.Port != 7946 {
+		t.Errorf("expected default cluster port 7946, got %d", dc.ClusterConfig.Port)
+	}
+	if dc.ClusterConfig.BindAddr != "0.0.0.0" {
+		t.Errorf("expected default bind addr 0.0.0.0, got %s", dc.ClusterConfig.BindAddr)
+	}
+}
+
+func TestSetupWithClusterEnabled(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name node1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !dc.ClusterConfig.Enabled {
+		t.Error("expected cluster to be enabled")
+	}
+	if dc.ClusterConfig.NodeName != "node1" {
+		t.Errorf("expected node_name 'node1', got %s", dc.ClusterConfig.NodeName)
+	}
+}
+
+func TestSetupWithClusterSeeds(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name node1
+		cluster_seeds 192.168.1.2:7946,192.168.1.3:7946
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(dc.ClusterConfig.Seeds) != 2 {
+		t.Fatalf("expected 2 seeds, got %d", len(dc.ClusterConfig.Seeds))
+	}
+	if dc.ClusterConfig.Seeds[0] != "192.168.1.2:7946" {
+		t.Errorf("expected seed '192.168.1.2:7946', got %s", dc.ClusterConfig.Seeds[0])
+	}
+	if dc.ClusterConfig.Seeds[1] != "192.168.1.3:7946" {
+		t.Errorf("expected seed '192.168.1.3:7946', got %s", dc.ClusterConfig.Seeds[1])
+	}
+}
+
+func TestSetupWithClusterPort(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name node1
+		cluster_port 8000
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.ClusterConfig.Port != 8000 {
+		t.Errorf("expected cluster port 8000, got %d", dc.ClusterConfig.Port)
+	}
+}
+
+func TestSetupWithNodeName(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name my-unique-node
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.ClusterConfig.NodeName != "my-unique-node" {
+		t.Errorf("expected node_name 'my-unique-node', got %s", dc.ClusterConfig.NodeName)
+	}
+}
+
+func TestSetupWithClusterBindAddr(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name node1
+		cluster_bind_addr 10.0.0.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.ClusterConfig.BindAddr != "10.0.0.1" {
+		t.Errorf("expected cluster_bind_addr '10.0.0.1', got %s", dc.ClusterConfig.BindAddr)
+	}
+}
+
+func TestSetupWithClusterSecret(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name node1
+		cluster_secret mysecretkey
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(dc.ClusterConfig.SecretKey) != "mysecretkey" {
+		t.Errorf("expected cluster_secret 'mysecretkey', got %s", string(dc.ClusterConfig.SecretKey))
+	}
+}
+
+func TestSetupClusterEnabledWithoutNodeName(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Error("expected error when cluster_enabled but node_name not set")
+	}
+}
+
+func TestSetupWithInvalidClusterPort(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_port notanumber
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Error("expected error for invalid cluster_port")
+	}
+}

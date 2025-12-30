@@ -1,0 +1,36 @@
+# CoreDNS configuration for docker-cluster plugin with SWIM clustering
+# Each node watches its local Docker daemon and gossips records to peers
+# All nodes serve ALL cluster records for DNS redundancy
+#
+# Configuration is primarily via environment variables:
+#   HOST_IP           - IP to return for container DNS records
+#   NODE_NAME         - Unique identifier for this cluster node
+#   CLUSTER_ENABLED   - Enable clustering (true|false)
+#   CLUSTER_PORT      - Memberlist port (default: 7946)
+#   CLUSTER_SEEDS     - Comma-separated list of seed node addresses (host:port)
+#   CLUSTER_BIND_ADDR - Address to bind memberlist to (default: 0.0.0.0)
+
+.:54 {
+    docker-cluster {
+        # Docker socket
+        docker_socket unix:///var/run/docker.sock
+
+        # Host IP to return for container DNS records
+        host_ip 0.0.0.0
+
+        # Labels to watch for hostnames
+        label coredns.host.name
+        label joyride.host.name
+
+        # TTL for DNS responses (seconds)
+        ttl 60
+
+        # Clustering configuration (via env vars)
+        # cluster_enabled, cluster_port, cluster_seeds, node_name
+        # are all set via environment variables
+    }
+
+    errors
+    health :8080
+    prometheus :9153
+}
