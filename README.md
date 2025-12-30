@@ -60,7 +60,6 @@ labels:
 | `HOST_IP` | IP address to return for all container DNS records | Auto-detected (host network) |
 | `DOCKER_SOCKET` | Docker socket path | `unix:///var/run/docker.sock` |
 | `DNS_UNKNOWN_ACTION` | What to do for unknown hostnames: `drop` or `nxdomain` | `drop` |
-| `HEALTH_PORT` | Health check endpoint port | `5454` |
 
 ### Legacy Joyride Compatibility
 
@@ -201,7 +200,7 @@ docker compose -f docker-compose.test.yml up --abort-on-container-exit
 curl http://192.168.16.61:5454/health
 ```
 
-The health check port defaults to 5454 (avoids conflict with Unifi on 8080). Override with `HEALTH_PORT` environment variable.
+Health check is on port 5454.
 
 ## Logs
 

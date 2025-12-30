@@ -86,9 +86,9 @@ RUN chown -R coredns:coredns /etc/coredns
 # Expose DNS ports, health check, and metrics
 EXPOSE 54/udp 54/tcp 5454 9153
 
-# Health check (port 5454 default, configurable via HEALTH_PORT env var)
+# Health check on port 5454
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -q -O- http://localhost:${HEALTH_PORT:-5454}/health || exit 1
+    CMD wget -q -O- http://localhost:5454/health || exit 1
 
 # Start as root, entrypoint drops to coredns user after fixing permissions
 ENTRYPOINT ["/entrypoint.sh"]
