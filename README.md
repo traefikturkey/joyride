@@ -62,6 +62,17 @@ labels:
 | `DNS_UNKNOWN_ACTION` | What to do for unknown hostnames: `drop` or `nxdomain` | `drop` |
 | `HEALTH_PORT` | Health check endpoint port | `5454` |
 
+### Legacy Joyride Compatibility
+
+For backward compatibility with existing joyride configurations:
+
+| Legacy Variable | Maps To | Notes |
+|-----------------|---------|-------|
+| `JOYRIDE_ENABLE_SERF` | `CLUSTER_ENABLED` | `true` enables clustering |
+| `JOYRIDE_NXDOMAIN_ENABLED` | `DNS_UNKNOWN_ACTION` | `true` = nxdomain, `false` = drop |
+
+New variables take precedence if both are set. Deprecation warnings are logged.
+
 ### Corefile Options
 
 ```

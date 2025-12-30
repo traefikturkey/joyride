@@ -207,6 +207,21 @@ func parseConfig(c *caddy.Controller) (*DockerCluster, error) {
 		}
 	}
 
+	// Legacy Joyride backward compatibility (checked first, new vars override)
+	if envLegacySerf := os.Getenv("JOYRIDE_ENABLE_SERF"); envLegacySerf != "" {
+		val := strings.ToLower(envLegacySerf)
+		clusterConfig.Enabled = val == "true" || val == "1" || val == "yes"
+		log.Infof("JOYRIDE_ENABLE_SERF is deprecated, use CLUSTER_ENABLED")
+	}
+	if envLegacyNXDomain := os.Getenv("JOYRIDE_NXDOMAIN_ENABLED"); envLegacyNXDomain != "" {
+		val := strings.ToLower(envLegacyNXDomain)
+		if val == "true" || val == "1" || val == "yes" {
+			unknownAction = ActionNXDomain
+		}
+		// false/empty = ActionDrop (already the default)
+		log.Infof("JOYRIDE_NXDOMAIN_ENABLED is deprecated, use DNS_UNKNOWN_ACTION")
+	}
+
 	// Check for environment variable overrides
 	if envHostIP := os.Getenv("HOST_IP"); envHostIP != "" {
 		hostIP = envHostIP
