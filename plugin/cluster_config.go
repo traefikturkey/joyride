@@ -1,8 +1,8 @@
 package dockercluster
 
 import (
-	"errors"
 	"fmt"
+	"os"
 )
 
 // ClusterConfig holds configuration for memberlist-based clustering.
@@ -43,14 +43,20 @@ func NewClusterConfig() *ClusterConfig {
 }
 
 // Validate checks that the cluster configuration is valid.
+// Auto-generates NodeName from hostname if clustering is enabled but no name is set.
 // Returns an error if validation fails.
 func (c *ClusterConfig) Validate() error {
 	if c.Port <= 0 || c.Port >= 65536 {
 		return fmt.Errorf("cluster port must be between 1 and 65535, got %d", c.Port)
 	}
 
+	// Auto-generate NodeName from hostname if not provided
 	if c.Enabled && c.NodeName == "" {
-		return errors.New("cluster node_name is required when clustering is enabled")
+		hostname, err := os.Hostname()
+		if err != nil {
+			return fmt.Errorf("cluster node_name is required (auto-detect failed: %v)", err)
+		}
+		c.NodeName = hostname
 	}
 
 	return nil
