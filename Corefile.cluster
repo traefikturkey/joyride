@@ -9,6 +9,7 @@
 #   CLUSTER_PORT      - Memberlist port (default: 7946)
 #   CLUSTER_SEEDS     - Comma-separated list of seed node addresses (host:port)
 #   CLUSTER_BIND_ADDR - Address to bind memberlist to (default: 0.0.0.0)
+#   HEALTH_PORT       - Health check port (default: 5454)
 
 .:54 {
     docker-cluster {
@@ -31,6 +32,6 @@
     }
 
     errors
-    health :8080
+    health :{$HEALTH_PORT:5454}
     prometheus :9153
 }
