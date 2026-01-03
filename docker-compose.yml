@@ -24,6 +24,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./Corefile:/etc/coredns/Corefile:ro
+      - ./etc/joyride/hosts.d:/etc/hosts.d:ro
     deploy:
       resources:
         limits:

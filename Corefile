@@ -12,6 +12,13 @@
 #   DNS_UNKNOWN_ACTION - What to do for unknown queries (drop|nxdomain)
 
 .:54 {
+    # Static hosts file for manual DNS entries
+    # Edit ./etc/joyride/hosts.d/hosts to add entries (standard hosts file format)
+    # Example: 192.168.1.10 nas.example.com
+    hosts /etc/hosts.d/hosts {
+        fallthrough
+    }
+
     # Custom docker-cluster plugin
     # Watches Docker containers for DNS labels and serves A records
     docker-cluster {

@@ -11,6 +11,11 @@
 #   CLUSTER_BIND_ADDR - Address to bind memberlist to (default: 0.0.0.0)
 
 .:54 {
+    # Static hosts file for manual DNS entries
+    hosts /etc/hosts.d/hosts {
+        fallthrough
+    }
+
     docker-cluster {
         # Docker socket
         docker_socket unix:///var/run/docker.sock

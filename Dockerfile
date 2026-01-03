@@ -80,8 +80,11 @@ RUN chmod 755 /entrypoint.sh
 # Copy default Corefile
 COPY Corefile /etc/coredns/Corefile
 
+# Copy default hosts file for static DNS entries
+COPY etc/joyride/hosts.d/hosts /etc/hosts.d/hosts
+
 # Set ownership
-RUN chown -R coredns:coredns /etc/coredns
+RUN chown -R coredns:coredns /etc/coredns /etc/hosts.d
 
 # Expose DNS ports, health check, and metrics
 EXPOSE 54/udp 54/tcp 5454 9153

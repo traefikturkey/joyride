@@ -51,6 +51,22 @@ labels:
   - "joyride.host.name=myapp.example.com"
 ```
 
+## Static DNS Entries
+
+For hosts that aren't Docker containers (NAS, printers, etc.), add entries to the hosts file:
+
+```bash
+vi ./etc/joyride/hosts.d/hosts
+```
+
+Use standard hosts file format:
+```
+192.168.1.10 nas.example.com nas
+192.168.1.20 printer.example.com
+```
+
+Static entries take priority over Docker container labels. Changes are picked up automatically (no restart required).
+
 ## Configuration
 
 ### Environment Variables
