@@ -104,20 +104,19 @@ func TestClusterConfigValidateInvalidPort(t *testing.T) {
 	}
 }
 
-func TestClusterConfigValidateMissingNodeName(t *testing.T) {
+func TestClusterConfigValidateAutoGeneratesNodeName(t *testing.T) {
 	cfg := NewClusterConfig()
 	cfg.Enabled = true
-	cfg.NodeName = ""
+	cfg.NodeName = "" // Should be auto-generated from hostname
 
 	err := cfg.Validate()
-	if err == nil {
-		t.Error("expected error for enabled config with missing NodeName")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 
-	// Verify the error message mentions node_name
-	expectedSubstr := "node_name"
-	if err != nil && !containsSubstring(err.Error(), expectedSubstr) {
-		t.Errorf("expected error message to contain %q, got %q", expectedSubstr, err.Error())
+	// Verify NodeName was auto-generated from hostname
+	if cfg.NodeName == "" {
+		t.Error("expected NodeName to be auto-generated from hostname")
 	}
 }
 

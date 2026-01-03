@@ -56,29 +56,39 @@ func TestNewClusterManagerEnabled(t *testing.T) {
 	}
 }
 
-func TestNewClusterManagerInvalid(t *testing.T) {
+func TestNewClusterManagerAutoGeneratesNodeName(t *testing.T) {
 	records := NewRecords()
 
-	// Test missing NodeName
+	// Test auto-generation of NodeName from hostname
 	config := NewClusterConfig()
 	config.Enabled = true
-	config.NodeName = "" // Missing required NodeName
+	config.NodeName = "" // Should be auto-generated
 
 	cm, err := NewClusterManager(config, records)
-	if err == nil {
-		t.Error("expected error for missing NodeName")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if cm == nil {
+		t.Error("expected ClusterManager to be created")
+	}
+	if cm != nil && cm.config.NodeName == "" {
+		t.Error("expected NodeName to be auto-generated from hostname")
 	}
 	if cm != nil {
-		t.Error("expected nil ClusterManager for invalid config")
+		cm.Stop()
 	}
+}
+
+func TestNewClusterManagerInvalidPort(t *testing.T) {
+	records := NewRecords()
 
 	// Test invalid port
-	config2 := NewClusterConfig()
-	config2.Enabled = true
-	config2.NodeName = "test-node"
-	config2.Port = -1 // Invalid port
+	config := NewClusterConfig()
+	config.Enabled = true
+	config.NodeName = "test-node"
+	config.Port = -1 // Invalid port
 
-	cm, err = NewClusterManager(config2, records)
+	cm, err := NewClusterManager(config, records)
 	if err == nil {
 		t.Error("expected error for invalid port")
 	}
