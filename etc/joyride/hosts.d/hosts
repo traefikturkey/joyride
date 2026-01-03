@@ -5,3 +5,8 @@
 # Example:
 # 192.168.1.10 nas.example.com nas
 # 192.168.1.20 printer.example.com
+
+# Test entries for integration testing
+10.99.99.1 static-host.example.com
+10.99.99.2 nas.example.com nas-alias
+10.99.99.3 multi-alias.example.com alias1 alias2
