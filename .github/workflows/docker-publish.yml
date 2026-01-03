@@ -32,8 +32,32 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Download CoreDNS for plugin dependencies
+        run: |
+          git clone --depth 1 https://github.com/coredns/coredns.git /tmp/coredns
+          cp -r plugin /tmp/coredns/plugin/docker-cluster
+          cp plugin.cfg /tmp/coredns/plugin.cfg
+
+      - name: Run unit tests
+        working-directory: /tmp/coredns
+        run: |
+          go mod tidy
+          go test -v -race -timeout 60s ./plugin/docker-cluster/...
+
   build:
     runs-on: ubuntu-latest
+    needs: test
 
     permissions:
       contents: write
