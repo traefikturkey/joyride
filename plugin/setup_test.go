@@ -1,6 +1,7 @@
 package dockercluster
 
 import (
+	"os"
 	"testing"
 
 	"github.com/coredns/caddy"
@@ -408,17 +409,20 @@ func TestSetupWithClusterSecret(t *testing.T) {
 	}
 }
 
-func TestSetupClusterEnabledWithoutNodeName(t *testing.T) {
+func TestSetupClusterEnabledAutoGeneratesNodeName(t *testing.T) {
 	input := `docker-cluster {
 		host_ip 192.168.1.1
 		cluster_enabled true
 	}`
 
 	c := caddy.NewTestController("dns", input)
-	_, err := parseConfig(c)
+	dc, err := parseConfig(c)
 
-	if err == nil {
-		t.Error("expected error when cluster_enabled but node_name not set")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.ClusterConfig.NodeName == "" {
+		t.Error("expected NodeName to be auto-generated from hostname")
 	}
 }
 
@@ -433,5 +437,152 @@ func TestSetupWithInvalidClusterPort(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for invalid cluster_port")
+	}
+}
+
+// Environment variable override tests
+
+func TestSetupHOSTIPEnvOverride(t *testing.T) {
+	// Set HOSTIP env var
+	os.Setenv("HOSTIP", "10.20.30.40")
+	defer os.Unsetenv("HOSTIP")
+
+	// Config has a placeholder host_ip that should be overridden
+	input := `docker-cluster {
+		host_ip 0.0.0.0
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.Watcher.hostIP != "10.20.30.40" {
+		t.Errorf("expected HOSTIP env override '10.20.30.40', got %s", dc.Watcher.hostIP)
+	}
+}
+
+func TestSetupHOSTIPEnvProvidesMissingHostIP(t *testing.T) {
+	// Set HOSTIP env var to provide missing host_ip
+	os.Setenv("HOSTIP", "192.168.100.1")
+	defer os.Unsetenv("HOSTIP")
+
+	// Config has no host_ip - env var should provide it
+	input := `docker-cluster {
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.Watcher.hostIP != "192.168.100.1" {
+		t.Errorf("expected HOSTIP env '192.168.100.1', got %s", dc.Watcher.hostIP)
+	}
+}
+
+func TestSetupDOCKER_SOCKETEnvOverride(t *testing.T) {
+	os.Setenv("DOCKER_SOCKET", "tcp://remote-docker:2375")
+	defer os.Unsetenv("DOCKER_SOCKET")
+
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.Watcher.dockerSocket != "tcp://remote-docker:2375" {
+		t.Errorf("expected DOCKER_SOCKET env override, got %s", dc.Watcher.dockerSocket)
+	}
+}
+
+func TestSetupDNS_UNKNOWN_ACTIONEnvOverride(t *testing.T) {
+	os.Setenv("DNS_UNKNOWN_ACTION", "nxdomain")
+	defer os.Unsetenv("DNS_UNKNOWN_ACTION")
+
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		unknown_action drop
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.UnknownAction != ActionNXDomain {
+		t.Errorf("expected DNS_UNKNOWN_ACTION env override to nxdomain, got %d", dc.UnknownAction)
+	}
+}
+
+func TestSetupCLUSTER_ENABLEDEnvOverride(t *testing.T) {
+	os.Setenv("CLUSTER_ENABLED", "true")
+	os.Setenv("NODE_NAME", "test-node")
+	defer os.Unsetenv("CLUSTER_ENABLED")
+	defer os.Unsetenv("NODE_NAME")
+
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !dc.ClusterConfig.Enabled {
+		t.Error("expected CLUSTER_ENABLED env to enable clustering")
+	}
+	if dc.ClusterConfig.NodeName != "test-node" {
+		t.Errorf("expected NODE_NAME 'test-node', got %s", dc.ClusterConfig.NodeName)
+	}
+}
+
+func TestSetupCLUSTER_PORTEnvOverride(t *testing.T) {
+	os.Setenv("CLUSTER_PORT", "9999")
+	defer os.Unsetenv("CLUSTER_PORT")
+
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dc.ClusterConfig.Port != 9999 {
+		t.Errorf("expected CLUSTER_PORT env override 9999, got %d", dc.ClusterConfig.Port)
+	}
+}
+
+func TestSetupCLUSTER_SEEDSEnvOverride(t *testing.T) {
+	os.Setenv("CLUSTER_SEEDS", "10.0.0.1:7946,10.0.0.2:7946")
+	defer os.Unsetenv("CLUSTER_SEEDS")
+
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	dc, err := parseConfig(c)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(dc.ClusterConfig.Seeds) != 2 {
+		t.Fatalf("expected 2 seeds from env, got %d", len(dc.ClusterConfig.Seeds))
+	}
+	if dc.ClusterConfig.Seeds[0] != "10.0.0.1:7946" {
+		t.Errorf("expected first seed '10.0.0.1:7946', got %s", dc.ClusterConfig.Seeds[0])
 	}
 }
