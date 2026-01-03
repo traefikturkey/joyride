@@ -52,6 +52,7 @@ jobs:
       - name: Run unit tests
         working-directory: /tmp/coredns
         run: |
+          go get github.com/docker/docker@v27.0.0+incompatible
           go mod tidy
           go test -v -race -timeout 60s ./plugin/docker-cluster/...
 
