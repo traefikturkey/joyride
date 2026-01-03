@@ -184,6 +184,33 @@ set service dns forwarding options "server=/example.com/192.168.16.62#54"
 set service dns forwarding options "all-servers"
 ```
 
+## PiHole / dnsmasq Setup
+
+Joyride runs on port 54 to avoid conflicts with local systemd-resolved. It does not forward DNS requests to another server - instead, configure your main DNS server to forward specific domain queries to it.
+
+```bash
+echo -e "server=/example.com/192.168.1.2#54\nall-servers\nno-negcache" | sudo tee -a /etc/dnsmasq.d/03-custom-dns-names.conf
+```
+
+Replace:
+- `example.com` - your domain
+- `192.168.1.2` - IP address of the server running Joyride
+
+Then restart dnsmasq:
+```bash
+sudo systemctl restart dnsmasq
+# Or for PiHole:
+pihole restartdns
+```
+
+### dnsmasq Options Explained
+
+- **all-servers** - Query all available DNS servers simultaneously and use the first response. Without this, dnsmasq waits for Joyride to respond (or timeout) before trying upstream DNS, causing delays for external hostnames.
+
+- **no-negcache** - Disable caching of negative results (NXDOMAIN). This prevents dnsmasq from caching "not found" responses, which is important when Joyride containers start/stop dynamically.
+
+See the [dnsmasq documentation](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) for all available options.
+
 ## Testing
 
 ```bash
