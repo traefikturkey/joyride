@@ -9,7 +9,8 @@ services:
     container_name: joyride
     restart: unless-stopped
     environment:
-      - HOSTIP=${HOSTIP}
+      # HOSTIP is auto-detected in host network mode; set to override
+      - HOSTIP=${HOSTIP:-}
       #- UPSTREAM_DNS=${UPSTREAM_DNS}
       - JOYRIDE_NXDOMAIN_ENABLED=${JOYRIDE_NXDOMAIN_ENABLED:-false}
       - JOYRIDE_LOG_DEBUG=${JOYRIDE_LOG_DEBUG:-false}

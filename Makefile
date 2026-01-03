@@ -4,20 +4,11 @@ export DOCKER_BUILDKIT := 1
 export DOCKER_SCAN_SUGGEST := false
 export COMPOSE_DOCKER_CLI_BUILD := 1
 
-ifndef HOSTIP
-	ifeq ($(OS),Windows_NT)
-		HOSTIP := $(shell powershell -command '(Get-NetIPConfiguration | Where-Object {$$_.IPv4DefaultGateway -ne $$null -and $$_.NetAdapter.Status -ne "Disconnected"}).IPv4Address.IPAddress' )
-	else
-		ifeq ($(UNAME_S),Linux)
-			HOSTIP := $(shell ip route get 1 | head -1 | awk '{print $$7}' )
-		endif
-		ifeq ($(UNAME_S),Darwin)
-			HOSTIP := $(shell ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $$2}' )
-		endif
-	endif
-endif
-
+# HOSTIP is now auto-detected inside the container (host network mode)
+# Set it here only if you need to override the detected value
+ifdef HOSTIP
 export HOSTIP
+endif
 export UPSTREAM_DNS
 
 # -------------------------------
