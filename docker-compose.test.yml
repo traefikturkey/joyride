@@ -6,16 +6,17 @@ services:
     ports:
       - "54:54/udp"
       - "54:54/tcp"
-      - "8080:8080"
+      - "5454:5454"
     environment:
-      - HOST_IP=192.168.1.100
+      - HOSTIP=192.168.1.100
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./Corefile:/etc/coredns/Corefile:ro
+      - ./etc/joyride/hosts.d:/etc/hosts.d:ro
     networks:
       - test-net
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:5454/health"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -86,7 +87,48 @@ services:
         echo 'Expecting timeout (no response)...' &&
         timeout 3 dig @coredns -p 54 nonexistent.example.com +short +tries=1 +time=2 || echo 'No response (expected)' &&
         echo '' &&
-        echo '=== All tests completed ==='
+        echo '=== Test 6: Static hosts file - basic entry ===' &&
+        STATIC_RESULT=\$$(dig @coredns -p 54 static-host.example.com +short) &&
+        echo \"static-host.example.com -> \$$STATIC_RESULT\" &&
+        if [ \"\$$STATIC_RESULT\" != '10.99.99.1' ]; then
+          echo 'FAIL: Expected 10.99.99.1 for static-host.example.com'
+          exit 1
+        fi &&
+        echo 'PASS: Static host entry resolved correctly' &&
+        echo '' &&
+        echo '=== Test 7: Static hosts file - entry with alias ===' &&
+        NAS_RESULT=\$$(dig @coredns -p 54 nas.example.com +short) &&
+        echo \"nas.example.com -> \$$NAS_RESULT\" &&
+        if [ \"\$$NAS_RESULT\" != '10.99.99.2' ]; then
+          echo 'FAIL: Expected 10.99.99.2 for nas.example.com'
+          exit 1
+        fi &&
+        ALIAS_RESULT=\$$(dig @coredns -p 54 nas-alias +short) &&
+        echo \"nas-alias -> \$$ALIAS_RESULT\" &&
+        if [ \"\$$ALIAS_RESULT\" != '10.99.99.2' ]; then
+          echo 'FAIL: Expected 10.99.99.2 for nas-alias'
+          exit 1
+        fi &&
+        echo 'PASS: Static host with alias resolved correctly' &&
+        echo '' &&
+        echo '=== Test 8: Static hosts file - multiple aliases ===' &&
+        MULTI_RESULT=\$$(dig @coredns -p 54 multi-alias.example.com +short) &&
+        echo \"multi-alias.example.com -> \$$MULTI_RESULT\" &&
+        if [ \"\$$MULTI_RESULT\" != '10.99.99.3' ]; then
+          echo 'FAIL: Expected 10.99.99.3 for multi-alias.example.com'
+          exit 1
+        fi &&
+        ALIAS1_RESULT=\$$(dig @coredns -p 54 alias1 +short) &&
+        echo \"alias1 -> \$$ALIAS1_RESULT\" &&
+        if [ \"\$$ALIAS1_RESULT\" != '10.99.99.3' ]; then
+          echo 'FAIL: Expected 10.99.99.3 for alias1'
+          exit 1
+        fi &&
+        echo 'PASS: Multiple aliases resolved correctly' &&
+        echo '' &&
+        echo '========================================' &&
+        echo '=== ALL TESTS PASSED ===' &&
+        echo '========================================'
       "
     networks:
       - test-net

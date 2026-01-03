@@ -34,7 +34,7 @@ FROM alpine:3.20
 # - ca-certificates: HTTPS support
 # - wget: health checks
 # - su-exec: drop privileges (like gosu but smaller)
-# - iproute2: auto-detect HOST_IP from default route
+# - iproute2: auto-detect HOSTIP from default route
 RUN apk add --no-cache ca-certificates wget su-exec iproute2
 
 # Create non-root user
@@ -45,18 +45,18 @@ COPY --from=builder /build/coredns/coredns /coredns
 
 # Create entrypoint script inline
 # - Fixes Docker socket permissions (chmod 666)
-# - Auto-detects HOST_IP from default route if not set
+# - Auto-detects HOSTIP from default route if not set
 # - Drops privileges to coredns user via su-exec
 RUN cat > /entrypoint.sh << 'EOF'
 #!/bin/sh
 set -e
 
-# Auto-detect HOST_IP if not set (requires host networking)
-if [ -z "$HOST_IP" ]; then
-    HOST_IP=$(ip route get 1 2>/dev/null | awk '{print $7}' | head -1)
-    if [ -n "$HOST_IP" ]; then
-        export HOST_IP
-        echo "[INFO] Auto-detected HOST_IP=$HOST_IP"
+# Auto-detect HOSTIP if not set (requires host networking)
+if [ -z "$HOSTIP" ]; then
+    HOSTIP=$(ip route get 1 2>/dev/null | awk '{print $7}' | head -1)
+    if [ -n "$HOSTIP" ]; then
+        export HOSTIP
+        echo "[INFO] Auto-detected HOSTIP=$HOSTIP"
     fi
 fi
 

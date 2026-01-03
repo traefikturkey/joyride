@@ -223,7 +223,7 @@ func parseConfig(c *caddy.Controller) (*DockerCluster, error) {
 	}
 
 	// Check for environment variable overrides
-	if envHostIP := os.Getenv("HOST_IP"); envHostIP != "" {
+	if envHostIP := os.Getenv("HOSTIP"); envHostIP != "" {
 		hostIP = envHostIP
 	}
 	if envDockerSocket := os.Getenv("DOCKER_SOCKET"); envDockerSocket != "" {
@@ -275,7 +275,7 @@ func parseConfig(c *caddy.Controller) (*DockerCluster, error) {
 
 	// Validate required fields
 	if hostIP == "" {
-		return nil, c.Err("host_ip is required (set in config or HOST_IP env var)")
+		return nil, c.Err("host_ip is required (set in config or HOSTIP env var)")
 	}
 
 	// Validate cluster config

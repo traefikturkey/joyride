@@ -326,7 +326,7 @@ services:
     build: .
     environment:
       - NODE_NAME=node1
-      - HOST_IP=192.168.16.61
+      - HOSTIP=192.168.16.61
       - CLUSTER_SEEDS=192.168.16.62:7946
     ports:
       - "54:54/udp"

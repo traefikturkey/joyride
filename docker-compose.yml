@@ -20,7 +20,7 @@ services:
       - "8080:8080"   # Health check
       - "9153:9153"   # Prometheus metrics
     environment:
-      - HOST_IP=${HOST_IP:?HOST_IP environment variable is required}
+      - HOSTIP=${HOSTIP:?HOSTIP environment variable is required}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./Corefile:/etc/coredns/Corefile:ro

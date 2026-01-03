@@ -3,7 +3,7 @@
 # All nodes serve ALL cluster records for DNS redundancy
 #
 # Configuration is primarily via environment variables:
-#   HOST_IP           - IP to return for container DNS records
+#   HOSTIP            - IP to return for container DNS records
 #   NODE_NAME         - Unique identifier for this cluster node
 #   CLUSTER_ENABLED   - Enable clustering (true|false)
 #   CLUSTER_PORT      - Memberlist port (default: 7946)

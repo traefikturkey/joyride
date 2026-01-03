@@ -3,7 +3,7 @@
 #
 # Usage: docker compose -f docker-compose.host.yml up -d
 #
-# Note: HOST_IP is auto-detected from the default route when using host networking
+# Note: HOSTIP is auto-detected from the default route when using host networking
 
 services:
   coredns:
@@ -23,8 +23,8 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      # HOST_IP is auto-detected when using host networking
-      # Uncomment to override: HOST_IP=192.168.16.61
+      # HOSTIP is auto-detected when using host networking
+      # Uncomment to override: HOSTIP=192.168.16.61
       - CLUSTER_ENABLED=true
       - NODE_NAME=${NODE_NAME:-node1}
       # No CLUSTER_SEEDS needed - nodes find each other via UDP broadcast

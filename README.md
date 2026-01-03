@@ -9,7 +9,7 @@ Using the pre-built image:
 ```bash
 docker run -d --name coredns-docker \
   -p 54:54/udp -p 54:54/tcp -p 5454:5454 \
-  -e HOST_IP=192.168.16.61 \
+  -e HOSTIP=192.168.16.61 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   ghcr.io/traefikturkey/joyride:coredns
 ```
@@ -17,7 +17,7 @@ docker run -d --name coredns-docker \
 Or build locally with Docker Compose:
 
 ```bash
-export HOST_IP=192.168.16.61
+export HOSTIP=192.168.16.61
 docker compose up -d
 ```
 
@@ -73,7 +73,7 @@ Static entries take priority over Docker container labels. Changes are picked up
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HOST_IP` | IP address to return for all container DNS records | Auto-detected (host network) |
+| `HOSTIP` | IP address to return for all container DNS records | Auto-detected (host network) |
 | `DOCKER_SOCKET` | Docker socket path | `unix:///var/run/docker.sock` |
 | `DNS_UNKNOWN_ACTION` | What to do for unknown hostnames: `drop` or `nxdomain` | `drop` |
 
@@ -110,14 +110,14 @@ Multiple CoreDNS nodes can share DNS records using SWIM gossip protocol. Each no
 Using Docker Compose with host networking (recommended for clustering):
 
 ```bash
-# HOST_IP is auto-detected when using host networking
+# HOSTIP is auto-detected when using host networking
 NODE_NAME=node1 docker compose -f docker-compose.host.yml up -d
 ```
 
 Or manually:
 
 ```bash
-# Node 1 - HOST_IP auto-detected from default route
+# Node 1 - HOSTIP auto-detected from default route
 docker run -d --network host \
   -e CLUSTER_ENABLED=true \
   -e NODE_NAME=node1 \
@@ -133,7 +133,7 @@ docker run -d --network host \
 ```
 
 **Note:** Host networking enables:
-- Automatic HOST_IP detection from the default network interface
+- Automatic HOSTIP detection from the default network interface
 - UDP broadcast discovery (nodes find each other automatically)
 - No need for `CLUSTER_SEEDS` configuration
 
@@ -269,7 +269,7 @@ If you want CoreDNS to forward unknown queries to upstream DNS (instead of dropp
 ```
 .:54 {
     docker-cluster {
-        host_ip {$HOST_IP}
+        host_ip {$HOSTIP}
         fallthrough
     }
     forward . 8.8.8.8 1.1.1.1

@@ -12,7 +12,7 @@ services:
     ports:
       - "54:54/udp"
     environment:
-      - HOST_IP=10.10.0.11
+      - HOSTIP=10.10.0.11
       - NODE_NAME=node1
       - CLUSTER_ENABLED=true
       - CLUSTER_PORT=7946
@@ -38,7 +38,7 @@ services:
     container_name: coredns-node2
     user: root
     environment:
-      - HOST_IP=10.10.0.12
+      - HOSTIP=10.10.0.12
       - NODE_NAME=node2
       - CLUSTER_ENABLED=true
       - CLUSTER_PORT=7946
@@ -66,7 +66,7 @@ services:
     container_name: coredns-node3
     user: root
     environment:
-      - HOST_IP=10.10.0.13
+      - HOSTIP=10.10.0.13
       - NODE_NAME=node3
       - CLUSTER_ENABLED=true
       - CLUSTER_PORT=7946

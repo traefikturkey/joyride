@@ -7,7 +7,7 @@
 #   EdgeRouter with all-servers queries upstreams in parallel
 #
 # Environment variable overrides:
-#   HOST_IP            - IP to return for container DNS records
+#   HOSTIP             - IP to return for container DNS records
 #   DOCKER_SOCKET      - Docker socket path
 #   DNS_UNKNOWN_ACTION - What to do for unknown queries (drop|nxdomain)
 
@@ -26,8 +26,8 @@
         docker_socket unix:///var/run/docker.sock
 
         # Host IP to return for container DNS records
-        # IMPORTANT: Override with HOST_IP environment variable in production
-        # This placeholder value will be overridden by HOST_IP env var
+        # IMPORTANT: Override with HOSTIP environment variable in production
+        # This placeholder value will be overridden by HOSTIP env var
         host_ip 0.0.0.0
 
         # Labels to watch for hostnames (both supported for Joyride compatibility)
@@ -68,7 +68,7 @@
 # .:54 {
 #     docker-cluster {
 #         docker_socket unix:///var/run/docker.sock
-#         host_ip 0.0.0.0  # Override with HOST_IP env var
+#         host_ip 0.0.0.0  # Override with HOSTIP env var
 #         label coredns.host.name
 #         label joyride.host.name
 #         ttl 60
