@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-integration run clean check-coredns-version build-latest
+.PHONY: build test test-unit test-integration run clean check-coredns-version build-latest audit
 
 # Default target
 all: build
@@ -54,6 +54,21 @@ fmt:
 # Lint Go code
 lint:
 	golangci-lint run ./plugin/...
+
+# Audit dependencies for known vulnerabilities (uses govulncheck via Docker)
+audit:
+	@echo "Scanning for vulnerabilities..."
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.24-alpine sh -c '\
+		apk add --no-cache git curl jq >/dev/null 2>&1 && \
+		go install golang.org/x/vuln/cmd/govulncheck@latest && \
+		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
+		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
+		cp -r plugin /tmp/coredns/plugin/docker-cluster && \
+		cp plugin.cfg /tmp/coredns/plugin.cfg && \
+		cd /tmp/coredns && \
+		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go mod tidy && \
+		govulncheck ./...'
 
 # Generate test coverage report
 coverage:
