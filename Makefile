@@ -22,8 +22,8 @@ test-unit:
 		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
 		echo "Testing with CoreDNS $$COREDNS_VERSION" && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
-		cp -r plugin /tmp/coredns/plugin/docker-cluster && \
-		cp -r traefik-externals /tmp/coredns/plugin/traefik-externals && \
+		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
+		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
 		go get github.com/docker/docker@v28.5.2+incompatible && \
@@ -42,8 +42,8 @@ test-race:
 		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
 		echo "Testing with CoreDNS $$COREDNS_VERSION (race detection enabled)" && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
-		cp -r plugin /tmp/coredns/plugin/docker-cluster && \
-		cp -r traefik-externals /tmp/coredns/plugin/traefik-externals && \
+		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
+		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
 		go get github.com/docker/docker@v28.5.2+incompatible && \
@@ -83,11 +83,11 @@ check-coredns-version:
 
 # Format Go code
 fmt:
-	go fmt ./plugin/...
+	go fmt ./plugins/...
 
 # Lint Go code
 lint:
-	golangci-lint run ./plugin/...
+	golangci-lint run ./plugins/...
 
 # Audit dependencies for known vulnerabilities (uses govulncheck via Docker)
 audit:
@@ -97,16 +97,18 @@ audit:
 		go install golang.org/x/vuln/cmd/govulncheck@latest && \
 		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
-		cp -r plugin /tmp/coredns/plugin/docker-cluster && \
+		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
+		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
 		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
 		govulncheck ./...'
 
 # Generate test coverage report
 coverage:
-	go test -coverprofile=coverage.out ./plugin/...
+	go test -coverprofile=coverage.out ./plugins/...
 	go tool cover -html=coverage.out -o coverage.html
 
 # View logs

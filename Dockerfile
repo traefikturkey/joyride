@@ -14,8 +14,8 @@ RUN COREDNS_VERSION=$(curl -s https://api.github.com/repos/coredns/coredns/relea
 WORKDIR /build/coredns
 
 # Copy custom plugin source files
-COPY plugin/*.go /build/coredns/plugin/docker-cluster/
-COPY traefik-externals/*.go /build/coredns/plugin/traefik-externals/
+COPY plugins/docker-cluster/*.go /build/coredns/plugin/docker-cluster/
+COPY plugins/traefik-externals/*.go /build/coredns/plugin/traefik-externals/
 
 # Copy custom plugin.cfg that includes docker-cluster and traefik-externals
 COPY plugin.cfg /build/coredns/plugin.cfg
