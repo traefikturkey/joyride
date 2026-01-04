@@ -67,6 +67,86 @@ Use standard hosts file format:
 
 Static entries take priority over Docker container labels. Changes are picked up automatically (no restart required).
 
+## Traefik External Services
+
+The `traefik-externals` plugin automatically creates DNS records from Traefik external service configurations. This is useful when you have services running outside Docker (VMs, bare metal, external APIs) that are proxied through Traefik.
+
+### How It Works
+
+1. Watches a directory for Traefik YAML config files (default: `/etc/traefik/external-enabled`)
+2. Parses `Host()` and `HostSNI()` rules to extract hostnames
+3. Creates DNS A records pointing those hostnames to your configured `HOSTIP`
+4. File changes are picked up automatically (no restart required)
+
+### Example Traefik External Config
+
+Create a file in your Traefik external configs directory:
+
+```yaml
+# /etc/traefik/external-enabled/proxmox.yml
+http:
+  routers:
+    proxmox:
+      rule: Host(`proxmox.example.com`)
+      service: proxmox
+      entryPoints:
+        - websecure
+  services:
+    proxmox:
+      loadBalancer:
+        servers:
+          - url: https://192.168.1.100:8006
+```
+
+The plugin extracts `proxmox.example.com` from the `Host()` rule and creates a DNS record for it.
+
+### Supported Patterns
+
+```yaml
+# Single host
+rule: Host(`app.example.com`)
+
+# Multiple hosts
+rule: Host(`app.example.com`, `www.example.com`)
+
+# HostSNI for TCP/TLS services
+rule: HostSNI(`db.example.com`)
+
+# Environment variable substitution
+rule: Host(`app.{{env "DOMAIN"}}`)  # Resolves $DOMAIN at runtime
+```
+
+**Not supported:** `HostRegexp()` patterns (cannot enumerate regex matches - a warning is logged)
+
+### Configuration
+
+Mount your Traefik external configs directory:
+
+```yaml
+services:
+  coredns:
+    volumes:
+      - /path/to/traefik/external-enabled:/etc/traefik/external-enabled:ro
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TRAEFIK_EXTERNALS_ENABLED` | Enable/disable the plugin | `true` |
+| `TRAEFIK_EXTERNALS_DIRECTORY` | Config directory to watch | `/etc/traefik/external-enabled` |
+| `TRAEFIK_EXTERNALS_TTL` | TTL for DNS responses | `60` |
+
+### Disabling the Plugin
+
+If you don't use Traefik external services:
+
+```bash
+docker run -e TRAEFIK_EXTERNALS_ENABLED=false ...
+```
+
+The plugin also gracefully disables itself if the config directory doesn't exist.
+
 ## Configuration
 
 ### Environment Variables
@@ -244,6 +324,25 @@ curl http://192.168.16.61:5454/health
 ```
 
 Health check is on port 5454.
+
+## Version Endpoint
+
+Query build version information:
+
+```bash
+curl http://192.168.16.61:8081/version
+```
+
+Returns:
+```json
+{
+  "version": "2.4.0",
+  "git_commit": "abc1234...",
+  "build_time": "2026-01-04T12:00:00Z"
+}
+```
+
+Override the port with `COREDNS_VERSION_PORT` environment variable (default: `:8081`).
 
 ## Logs
 
