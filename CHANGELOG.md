@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.0 (2026-01-04)
+
+
+### Features
+
+* Add Release-Please automation and project documentation ([e6573db](https://github.com/traefikturkey/joyride/commit/e6573dbadaceb72291a20a81d51b538f3515a674))
+* Add static DNS entries via CoreDNS hosts plugin ([0fba687](https://github.com/traefikturkey/joyride/commit/0fba687e7f4a0806b8bd3ba90700075d9ed5f9c7))
+* Add version endpoint with build info ([f74ca7d](https://github.com/traefikturkey/joyride/commit/f74ca7d4e060df3a78ebba130e65ad032bd85ef2))
+* **make:** Add audit target for vulnerability scanning ([75a5b60](https://github.com/traefikturkey/joyride/commit/75a5b60cb14e90c137571ce028333b1508ed02ac))
+* **plugin:** Add traefik-externals plugin for Traefik external service DNS ([f6b5048](https://github.com/traefikturkey/joyride/commit/f6b50483bd2e25aa10699d333feca9307a6efbc2))
+
+
+### Bug Fixes
+
+* Address crash risks and improve error handling ([680d4b5](https://github.com/traefikturkey/joyride/commit/680d4b51705f1a19b6cc11dbdd6642fe18681210))
+* **ci:** Check secret instead of variable for Discord notification ([f12b57a](https://github.com/traefikturkey/joyride/commit/f12b57aaeb40c499f8be096328bbb7e3545be3c5))
+* **ci:** Correct release-please-action SHA ([2441809](https://github.com/traefikturkey/joyride/commit/2441809fba61b94730119cc137201af01195c086))
+* **ci:** Exclude cluster tests requiring UDP networking ([0f2fbff](https://github.com/traefikturkey/joyride/commit/0f2fbffd83fe6a9e2c4f1f753dd4803f9fede70d))
+* **ci:** Pin Docker client version in test workflow ([8d857a8](https://github.com/traefikturkey/joyride/commit/8d857a81be33ffafd4ec6cdb0ddf1060d193f416))
+* **ci:** Remove condition from Discord notification ([31b9616](https://github.com/traefikturkey/joyride/commit/31b96168db8d9473d1dd8467c1ac7e44631ee591))
+* **ci:** Use continue-on-error for Discord notification ([76d4813](https://github.com/traefikturkey/joyride/commit/76d48134d02e8e2f4ee8d31fcd0cdaaafc811eec))
+* **cluster:** Prevent deadlock in ClusterManager.Stop() ([2595a69](https://github.com/traefikturkey/joyride/commit/2595a695f88a758601b60e902259d95b488e854c))
+* **deps:** Update indirect dependencies for remaining CVEs ([b83a25c](https://github.com/traefikturkey/joyride/commit/b83a25cc58ec0734e8e0043c403515d5793d4d41))
+* **docker:** Move dependency install after plugin copy ([73254d1](https://github.com/traefikturkey/joyride/commit/73254d1e0235267430b4e664c78e3b9ca2e1f9a3))
+* Move hosts plugin before docker-cluster in plugin chain ([dd82903](https://github.com/traefikturkey/joyride/commit/dd829035e9a242b3833f06016c33fa492ce804d2))
+* **security:** Update dependencies to address 9 Dependabot alerts ([9b2ff79](https://github.com/traefikturkey/joyride/commit/9b2ff79348f5505f42542ca833cff6dd51e0f599))
+
 ## [Unreleased]
 
 ### Added
