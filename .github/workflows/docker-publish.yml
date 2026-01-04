@@ -6,7 +6,7 @@ on:
     branches: [ '**' ]
     tags: [ 'v*.*.*' ]
     paths:
-      - 'plugin/**/*'
+      - 'plugins/**/*'
       - 'Dockerfile'
       - 'Corefile'
       - 'Corefile.cluster'
@@ -18,7 +18,7 @@ on:
     branches: [ "coredns" ]
     types: [ closed ]
     paths:
-      - 'plugin/**/*'
+      - 'plugins/**/*'
       - 'Dockerfile'
       - 'Corefile'
       - 'Corefile.cluster'
@@ -45,18 +45,23 @@ jobs:
 
       - name: Download CoreDNS for plugin dependencies
         run: |
-          git clone --depth 1 https://github.com/coredns/coredns.git /tmp/coredns
-          cp -r plugin /tmp/coredns/plugin/docker-cluster
+          COREDNS_VERSION=$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r '.tag_name')
+          echo "Testing with CoreDNS ${COREDNS_VERSION}"
+          git clone --depth 1 --branch ${COREDNS_VERSION} https://github.com/coredns/coredns.git /tmp/coredns
+          cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster
+          cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals
           cp plugin.cfg /tmp/coredns/plugin.cfg
 
       - name: Run unit tests
         working-directory: /tmp/coredns
         run: |
-          go get github.com/docker/docker@v27.0.0+incompatible
+          go get github.com/docker/docker@v28.5.2+incompatible
+          go get github.com/fsnotify/fsnotify@v1.7.0
           go mod tidy
-          # Run all unit tests except ClusterManager integration tests that require UDP networking
-          # TestClusterManager* (without New prefix) creates actual memberlist instances needing UDP ports
-          go test -v -race -timeout 60s -run "^(TestSetup|TestRecords|TestServeDNS|TestMessage|TestClusterConfig|TestNewClusterManager|TestDelegate|TestDockerCluster|TestBroadcast|TestDecode|TestNew|TestFull|TestRecord)" ./plugin/docker-cluster/...
+          echo "Running traefik-externals tests..."
+          go test -v -timeout 60s ./plugin/traefik-externals/...
+          echo "Running docker-cluster tests..."
+          go test -v -timeout 60s ./plugin/docker-cluster/...
 
   build:
     runs-on: ubuntu-latest
@@ -99,6 +104,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          target: production
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
