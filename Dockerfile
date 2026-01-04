@@ -15,12 +15,14 @@ WORKDIR /build/coredns
 
 # Copy custom plugin source files
 COPY plugin/*.go /build/coredns/plugin/docker-cluster/
+COPY traefik-externals/*.go /build/coredns/plugin/traefik-externals/
 
-# Copy custom plugin.cfg that includes docker-cluster
+# Copy custom plugin.cfg that includes docker-cluster and traefik-externals
 COPY plugin.cfg /build/coredns/plugin.cfg
 
-# Add Docker client dependency to CoreDNS go.mod
+# Add dependencies to CoreDNS go.mod
 RUN go get github.com/docker/docker@v28.5.2+incompatible && \
+    go get github.com/fsnotify/fsnotify@v1.7.0 && \
     go mod tidy
 
 # Generate plugin wiring and build

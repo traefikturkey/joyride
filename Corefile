@@ -7,9 +7,11 @@
 #   EdgeRouter with all-servers queries upstreams in parallel
 #
 # Environment variable overrides:
-#   HOSTIP             - IP to return for container DNS records
-#   DOCKER_SOCKET      - Docker socket path
-#   DNS_UNKNOWN_ACTION - What to do for unknown queries (drop|nxdomain)
+#   HOSTIP                       - IP to return for container DNS records
+#   DOCKER_SOCKET                - Docker socket path
+#   DNS_UNKNOWN_ACTION           - What to do for unknown queries (drop|nxdomain)
+#   TRAEFIK_EXTERNALS_ENABLED    - Enable/disable traefik-externals (default: true)
+#   TRAEFIK_EXTERNALS_DIRECTORY  - Directory for Traefik external configs
 
 .:54 {
     # Static hosts file for manual DNS entries
@@ -43,6 +45,25 @@
         #   nxdomain - Return NXDOMAIN - for authoritative setups
         # Can also be set via DNS_UNKNOWN_ACTION env var
         # unknown_action drop
+    }
+
+    # Traefik externals plugin
+    # Watches Traefik external config files for Host() rules
+    # Disable with TRAEFIK_EXTERNALS_ENABLED=false
+    traefik-externals {
+        # Directory containing Traefik external YAML configs
+        # Override with TRAEFIK_EXTERNALS_DIRECTORY env var
+        directory /etc/traefik/external-enabled
+
+        # Host IP to return for external service DNS records
+        # Uses HOSTIP env var (same as docker-cluster)
+        host_ip 0.0.0.0
+
+        # TTL for DNS responses (seconds)
+        ttl 60
+
+        # Pass unknown queries to next plugin
+        fallthrough
     }
 
     # Error logging

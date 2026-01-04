@@ -17,21 +17,26 @@ services:
     ports:
       - "54:54/udp"
       - "54:54/tcp"
-      - "8080:8080"   # Health check
+      - "5454:5454"   # Health check
       - "9153:9153"   # Prometheus metrics
     environment:
       - HOSTIP=${HOSTIP:?HOSTIP environment variable is required}
+      # Set to 'false' to disable traefik-externals plugin
+      # - TRAEFIK_EXTERNALS_ENABLED=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./Corefile:/etc/coredns/Corefile:ro
       - ./etc/joyride/hosts.d:/etc/hosts.d:ro
+      # Mount Traefik external configs (from onramp project)
+      # Uncomment and adjust path for your setup:
+      # - ../onramp/external-enabled:/etc/traefik/external-enabled:ro
     deploy:
       resources:
         limits:
           memory: 128M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:5454/health"]
       interval: 10s
       timeout: 5s
       retries: 3
