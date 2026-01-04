@@ -1,54 +1,113 @@
-# Stage 1: Build CoreDNS with custom docker-cluster plugin
-FROM golang:1.24-alpine AS builder
+# =============================================================================
+# Multi-stage Dockerfile for CoreDNS with custom plugins
+#
+# Targets:
+#   dev        - Development image with Go toolchain for quick rebuilds
+#   production - Minimal production image (~15MB)
+#
+# Usage:
+#   docker build --target dev -t coredns-dev .
+#   docker build --target production -t coredns-docker-cluster .
+#   docker build -t coredns-docker-cluster .  # defaults to production
+# =============================================================================
 
-# Install build dependencies
-RUN apk add --no-cache git make curl jq
+# -----------------------------------------------------------------------------
+# Stage: base
+# Common setup - clones CoreDNS and installs Go dependencies
+# This layer is cached and reused by both dev and production builds
+# -----------------------------------------------------------------------------
+FROM golang:1.24-alpine AS base
+
+RUN apk add --no-cache git curl jq
 
 WORKDIR /build
 
 # Fetch latest CoreDNS release version and clone
+# This is cached until the base image changes
 RUN COREDNS_VERSION=$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r '.tag_name') && \
     echo "Building with CoreDNS ${COREDNS_VERSION}" && \
+    echo "${COREDNS_VERSION}" > /coredns-version && \
     git clone --depth 1 --branch ${COREDNS_VERSION} https://github.com/coredns/coredns.git
 
 WORKDIR /build/coredns
 
-# Copy custom plugin source files
+# Copy plugin.cfg first (changes less frequently)
+COPY plugin.cfg /build/coredns/plugin.cfg
+
+# Add dependencies to CoreDNS go.mod and download
+RUN go get github.com/docker/docker@v28.5.2+incompatible && \
+    go get github.com/fsnotify/fsnotify@v1.7.0 && \
+    go mod tidy && \
+    go mod download
+
+# -----------------------------------------------------------------------------
+# Stage: dev
+# Development image - includes Go toolchain for rapid iteration
+# Mounts source code as volume for instant rebuilds without re-downloading deps
+# -----------------------------------------------------------------------------
+FROM base AS dev
+
+# Install additional dev tools
+RUN apk add --no-cache make build-base
+
+# Copy plugin source files
 COPY plugins/docker-cluster/*.go /build/coredns/plugin/docker-cluster/
 COPY plugins/traefik-externals/*.go /build/coredns/plugin/traefik-externals/
 
-# Copy custom plugin.cfg that includes docker-cluster and traefik-externals
-COPY plugin.cfg /build/coredns/plugin.cfg
+# Generate plugin wiring
+RUN go generate
 
-# Add dependencies to CoreDNS go.mod
-RUN go get github.com/docker/docker@v28.5.2+incompatible && \
-    go get github.com/fsnotify/fsnotify@v1.7.0 && \
-    go mod tidy
+# Build with race detector support (useful for testing)
+ENV CGO_ENABLED=1
+ENV GOOS=linux
 
-# Generate plugin wiring and build
+# Default command: rebuild and run
+# For interactive development, override with: docker run -it coredns-dev sh
+CMD ["sh", "-c", "go build -race -o /coredns . && /coredns -conf /etc/coredns/Corefile"]
+
+# Copy config files for standalone dev testing
+COPY Corefile /etc/coredns/Corefile
+COPY etc/joyride/hosts.d/hosts /etc/hosts.d/hosts
+
+EXPOSE 54/udp 54/tcp 5454 9153
+
+# -----------------------------------------------------------------------------
+# Stage: builder
+# Compiles the production binary (static, no CGO)
+# -----------------------------------------------------------------------------
+FROM base AS builder
+
+# Copy plugin source files
+COPY plugins/docker-cluster/*.go /build/coredns/plugin/docker-cluster/
+COPY plugins/traefik-externals/*.go /build/coredns/plugin/traefik-externals/
+
+# Generate plugin wiring and build static binary
 RUN CGO_ENABLED=0 GOOS=linux go generate && \
-    CGO_ENABLED=0 GOOS=linux go build -o coredns .
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /coredns .
 
-# Stage 2: Runtime image
-FROM alpine:3.20
+# -----------------------------------------------------------------------------
+# Stage: production
+# Minimal runtime image - only the binary and essential runtime deps
+# -----------------------------------------------------------------------------
+FROM alpine:3.20 AS production
 
-# Install runtime dependencies
-# - ca-certificates: HTTPS support
+# Install minimal runtime dependencies
+# - ca-certificates: HTTPS/TLS support
 # - wget: health checks
-# - su-exec: drop privileges (like gosu but smaller)
-# - iproute2: auto-detect HOSTIP from default route
+# - su-exec: privilege dropping (smaller than gosu)
+# - iproute2: HOSTIP auto-detection
 RUN apk add --no-cache ca-certificates wget su-exec iproute2
 
 # Create non-root user
 RUN adduser -D -u 1000 coredns
 
-# Copy the CoreDNS binary
-COPY --from=builder /build/coredns/coredns /coredns
+# Copy the static binary
+COPY --from=builder /coredns /coredns
 
-# Create entrypoint script inline
-# - Fixes Docker socket permissions (chmod 666)
+# Create entrypoint script
 # - Auto-detects HOSTIP from default route if not set
-# - Drops privileges to coredns user via su-exec
+# - Fixes Docker socket permissions
+# - Drops privileges to coredns user
 RUN cat > /entrypoint.sh << 'EOF'
 #!/bin/sh
 set -e
@@ -66,34 +125,27 @@ if [ "$(id -u)" = "0" ]; then
     # Try to make Docker socket readable by coredns user
     if [ -S /var/run/docker.sock ]; then
         if chmod 666 /var/run/docker.sock 2>/dev/null; then
-            # Success - drop privileges and run as coredns user
             exec su-exec coredns /coredns -conf /etc/coredns/Corefile "$@"
         fi
     fi
-    # Chmod failed (read-only mount) or no socket - run as root
+    # Chmod failed or no socket - run as root
     exec /coredns -conf /etc/coredns/Corefile "$@"
 else
-    # Already non-root, just run
     exec /coredns -conf /etc/coredns/Corefile "$@"
 fi
 EOF
 RUN chmod 755 /entrypoint.sh
 
-# Copy default Corefile
+# Copy configuration
 COPY Corefile /etc/coredns/Corefile
-
-# Copy default hosts file for static DNS entries
 COPY etc/joyride/hosts.d/hosts /etc/hosts.d/hosts
 
 # Set ownership
 RUN chown -R coredns:coredns /etc/coredns /etc/hosts.d
 
-# Expose DNS ports, health check, and metrics
 EXPOSE 54/udp 54/tcp 5454 9153
 
-# Health check on port 5454
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
     CMD wget -q -O- http://localhost:5454/health || exit 1
 
-# Start as root, entrypoint drops to coredns user after fixing permissions
 ENTRYPOINT ["/entrypoint.sh"]

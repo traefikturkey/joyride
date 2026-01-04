@@ -1,15 +1,19 @@
-.PHONY: build test test-unit test-race test-integration run clean check-coredns-version build-latest audit
+.PHONY: build build-dev build-latest test test-unit test-race test-integration run run-dev clean check-coredns-version audit
 
 # Default target
 all: build
 
-# Build the Docker image
+# Build production image (minimal, ~15MB)
 build:
-	docker build -t coredns-docker-cluster .
+	docker build --target production -t coredns-docker-cluster .
+
+# Build development image (includes Go toolchain for quick rebuilds)
+build-dev:
+	docker build --target dev -t coredns-dev .
 
 # Build with no cache (forces fresh CoreDNS fetch)
 build-latest:
-	docker build --no-cache -t coredns-docker-cluster .
+	docker build --no-cache --target production -t coredns-docker-cluster .
 
 # Run all tests
 test: test-unit test-integration
@@ -62,13 +66,27 @@ test-cluster:
 	docker compose -f docker-compose.cluster-test.yml up --build --abort-on-container-exit
 	docker compose -f docker-compose.cluster-test.yml down -v
 
-# Run development environment
+# Run production environment
 run:
 	docker compose up --build
 
 # Run in background
 run-detached:
 	docker compose up --build -d
+
+# Run dev container with source mounted for quick rebuilds
+# Usage: make run-dev
+# Then inside container: go build -o /coredns . && /coredns -conf /etc/coredns/Corefile
+run-dev: build-dev
+	@MSYS_NO_PATHCONV=1 docker run -it --rm \
+		-v "$$(pwd)/plugins/docker-cluster":/build/coredns/plugin/docker-cluster \
+		-v "$$(pwd)/plugins/traefik-externals":/build/coredns/plugin/traefik-externals \
+		-v "$$(pwd)/Corefile":/etc/coredns/Corefile \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-p 54:54/udp -p 54:54/tcp -p 5454:5454 -p 9153:9153 \
+		-e HOSTIP=$${HOSTIP:-192.168.1.100} \
+		--network host \
+		coredns-dev sh
 
 # Stop and clean up
 clean:
