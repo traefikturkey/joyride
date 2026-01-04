@@ -114,32 +114,44 @@ func (cm *ClusterManager) Start(ctx context.Context) error {
 // Stop gracefully shuts down the cluster manager.
 // It stops the delegate, leaves the cluster, and shuts down memberlist.
 func (cm *ClusterManager) Stop() error {
+	// Get references and clear them atomically, but don't hold lock during shutdown
+	// to avoid deadlock with numNodes callback
 	cm.mu.Lock()
-	defer cm.mu.Unlock()
+	cancel := cm.cancel
+	discovery := cm.discovery
+	delegate := cm.delegate
+	ml := cm.memberlist
 
-	// Cancel context
-	if cm.cancel != nil {
-		cm.cancel()
+	// Clear references so numNodes returns 1 during shutdown
+	cm.cancel = nil
+	cm.discovery = nil
+	cm.delegate = nil
+	cm.memberlist = nil
+	cm.mu.Unlock()
+
+	// Cancel context first
+	if cancel != nil {
+		cancel()
 	}
 
 	// Stop discovery
-	if cm.discovery != nil {
-		cm.discovery.Stop()
+	if discovery != nil {
+		discovery.Stop()
 	}
 
 	// Stop delegate
-	if cm.delegate != nil {
-		cm.delegate.Stop()
+	if delegate != nil {
+		delegate.Stop()
 	}
 
-	// Leave and shutdown memberlist
-	if cm.memberlist != nil {
+	// Leave and shutdown memberlist (without holding lock)
+	if ml != nil {
 		// Leave with timeout
-		if err := cm.memberlist.Leave(5 * time.Second); err != nil {
+		if err := ml.Leave(5 * time.Second); err != nil {
 			log.Warningf("Error leaving cluster: %v", err)
 		}
 
-		if err := cm.memberlist.Shutdown(); err != nil {
+		if err := ml.Shutdown(); err != nil {
 			log.Warningf("Error shutting down memberlist: %v", err)
 			return err
 		}
