@@ -6,8 +6,8 @@ toolchain go1.24.11
 
 require (
 	github.com/coredns/caddy v1.1.2-0.20241029205200-8de985351a98
-	github.com/coredns/coredns v1.12.4
-	github.com/docker/docker v27.0.0+incompatible
+	github.com/coredns/coredns v1.13.2
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/hashicorp/memberlist v0.5.4
 	github.com/miekg/dns v1.1.68
 )

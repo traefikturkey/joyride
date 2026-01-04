@@ -20,7 +20,7 @@ COPY plugin/*.go /build/coredns/plugin/docker-cluster/
 COPY plugin.cfg /build/coredns/plugin.cfg
 
 # Add Docker client dependency to CoreDNS go.mod
-RUN go get github.com/docker/docker@v27.0.0+incompatible && \
+RUN go get github.com/docker/docker@v28.5.2+incompatible && \
     go mod tidy
 
 # Generate plugin wiring and build
