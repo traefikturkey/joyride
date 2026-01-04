@@ -59,7 +59,10 @@ func (dc *DockerCluster) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 	if state.QType() == dns.TypeAAAA && found {
 		m := new(dns.Msg)
 		m.SetReply(r)
-		w.WriteMsg(m)
+		if err := w.WriteMsg(m); err != nil {
+			log.Errorf("docker-cluster: failed to write AAAA response: %v", err)
+			return dns.RcodeServerFailure, err
+		}
 		return dns.RcodeSuccess, nil
 	}
 
@@ -72,6 +75,13 @@ func (dc *DockerCluster) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 		return dc.handleUnknown(ctx, w, r, state)
 	}
 
+	// Validate the IP address before building response
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil || parsedIP.To4() == nil {
+		log.Warningf("docker-cluster: invalid IPv4 address %q for hostname %s, treating as not found", ip, qname)
+		return dc.handleUnknown(ctx, w, r, state)
+	}
+
 	// Build the response
 	a := &dns.A{
 		Hdr: dns.RR_Header{
@@ -80,7 +90,7 @@ func (dc *DockerCluster) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 			Class:  dns.ClassINET,
 			Ttl:    dc.TTL,
 		},
-		A: net.ParseIP(ip).To4(),
+		A: parsedIP.To4(),
 	}
 
 	m := new(dns.Msg)
@@ -88,7 +98,10 @@ func (dc *DockerCluster) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *
 	m.Authoritative = true
 	m.Answer = append(m.Answer, a)
 
-	w.WriteMsg(m)
+	if err := w.WriteMsg(m); err != nil {
+		log.Errorf("docker-cluster: failed to write A response: %v", err)
+		return dns.RcodeServerFailure, err
+	}
 	return dns.RcodeSuccess, nil
 }
 
@@ -104,7 +117,10 @@ func (dc *DockerCluster) handleUnknown(ctx context.Context, w dns.ResponseWriter
 	case ActionNXDomain:
 		m := new(dns.Msg)
 		m.SetRcode(r, dns.RcodeNameError)
-		w.WriteMsg(m)
+		if err := w.WriteMsg(m); err != nil {
+			log.Errorf("docker-cluster: failed to write NXDOMAIN response: %v", err)
+			return dns.RcodeServerFailure, err
+		}
 		return dns.RcodeNameError, nil
 
 	default:

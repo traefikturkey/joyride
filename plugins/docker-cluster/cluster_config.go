@@ -50,6 +50,14 @@ func (c *ClusterConfig) Validate() error {
 		return fmt.Errorf("cluster port must be between 1 and 65535, got %d", c.Port)
 	}
 
+	// Validate secret key length if provided (must be valid AES key size)
+	if len(c.SecretKey) > 0 {
+		keyLen := len(c.SecretKey)
+		if keyLen != 16 && keyLen != 24 && keyLen != 32 {
+			return fmt.Errorf("cluster_secret must be 16, 24, or 32 bytes for AES-128/192/256, got %d bytes", keyLen)
+		}
+	}
+
 	// Auto-generate NodeName from hostname if not provided
 	if c.Enabled && c.NodeName == "" {
 		hostname, err := os.Hostname()

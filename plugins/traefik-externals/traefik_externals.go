@@ -45,7 +45,10 @@ func (te *TraefikExternals) ServeDNS(ctx context.Context, w dns.ResponseWriter, 
 		m := new(dns.Msg)
 		m.SetReply(r)
 		m.Authoritative = true
-		w.WriteMsg(m)
+		if err := w.WriteMsg(m); err != nil {
+			log.Errorf("traefik-externals: failed to write AAAA response: %v", err)
+			return dns.RcodeServerFailure, err
+		}
 		queriesTotal.WithLabelValues("AAAA", "success").Inc()
 		return dns.RcodeSuccess, nil
 	}
@@ -56,14 +59,24 @@ func (te *TraefikExternals) ServeDNS(ctx context.Context, w dns.ResponseWriter, 
 	}
 
 	if !found {
-		// Pass to next plugin in chain
 		queriesTotal.WithLabelValues("A", "miss").Inc()
 		if te.Fall.Through(state.Name()) {
+			// Fallthrough enabled - pass to next plugin in chain
 			return plugin.NextOrFailure(te.Name(), te.Next, ctx, w, r)
 		}
-		// Don't respond - let it fall through or timeout
-		log.Debugf("traefik-externals: no record found for %s", state.Name())
-		return plugin.NextOrFailure(te.Name(), te.Next, ctx, w, r)
+		// Fallthrough disabled - drop the query (no response, let it timeout)
+		// This is for split DNS setups where the upstream DNS server
+		// queries other sources in parallel.
+		log.Debugf("traefik-externals: no record found for %s, dropping query", state.Name())
+		return dns.RcodeSuccess, nil
+	}
+
+	// Validate the IP address before building response
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil || parsedIP.To4() == nil {
+		log.Warningf("traefik-externals: invalid IPv4 address %q for hostname %s, treating as not found", ip, qname)
+		queriesTotal.WithLabelValues("A", "miss").Inc()
+		return dns.RcodeSuccess, nil
 	}
 
 	// Build the response
@@ -74,7 +87,7 @@ func (te *TraefikExternals) ServeDNS(ctx context.Context, w dns.ResponseWriter, 
 			Class:  dns.ClassINET,
 			Ttl:    te.TTL,
 		},
-		A: net.ParseIP(ip).To4(),
+		A: parsedIP.To4(),
 	}
 
 	m := new(dns.Msg)
@@ -82,7 +95,10 @@ func (te *TraefikExternals) ServeDNS(ctx context.Context, w dns.ResponseWriter, 
 	m.Authoritative = true
 	m.Answer = append(m.Answer, a)
 
-	w.WriteMsg(m)
+	if err := w.WriteMsg(m); err != nil {
+		log.Errorf("traefik-externals: failed to write A response: %v", err)
+		return dns.RcodeServerFailure, err
+	}
 	queriesTotal.WithLabelValues("A", "success").Inc()
 	return dns.RcodeSuccess, nil
 }

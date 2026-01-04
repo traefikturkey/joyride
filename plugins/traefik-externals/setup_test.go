@@ -188,3 +188,71 @@ func TestIsDisabled(t *testing.T) {
 		}
 	}
 }
+
+// Regression test for GitHub issue: nil pointer panic when plugin disabled
+// When the plugin is disabled (via env var or missing directory), setup() must
+// return nil WITHOUT calling AddPlugin(). Previously, it called AddPlugin with
+// a pass-through handler that returned `next`, but if `next` was nil, CoreDNS
+// would panic during server initialization.
+//
+// This test verifies setup() returns nil (success) when disabled, which means
+// the plugin is gracefully skipped without registering any handler.
+
+func TestSetup_DisabledViaEnvVar_NoError(t *testing.T) {
+	// Disable plugin via environment variable
+	os.Setenv("TRAEFIK_EXTERNALS_ENABLED", "false")
+	os.Setenv("HOSTIP", "192.168.1.100")
+	defer func() {
+		os.Unsetenv("TRAEFIK_EXTERNALS_ENABLED")
+		os.Unsetenv("HOSTIP")
+	}()
+
+	input := `traefik-externals`
+	c := caddy.NewTestController("dns", input)
+
+	// setup() should return nil (no error) when disabled
+	// Previously this would register a nil handler that caused panic
+	err := setup(c)
+	if err != nil {
+		t.Errorf("setup() should return nil when disabled, got: %v", err)
+	}
+}
+
+func TestSetup_MissingDirectory_NoError(t *testing.T) {
+	// Use a directory that definitely doesn't exist
+	nonExistentDir := "/this/directory/does/not/exist/ever"
+
+	os.Setenv("HOSTIP", "192.168.1.100")
+	defer os.Unsetenv("HOSTIP")
+
+	input := `traefik-externals {
+		directory ` + nonExistentDir + `
+	}`
+	c := caddy.NewTestController("dns", input)
+
+	// setup() should return nil (no error) when directory doesn't exist
+	// Previously this would register a nil handler that caused panic
+	err := setup(c)
+	if err != nil {
+		t.Errorf("setup() should return nil for missing directory, got: %v", err)
+	}
+}
+
+func TestSetup_ValidDirectory_StartsWatcher(t *testing.T) {
+	// Create a real temporary directory
+	tmpDir := t.TempDir()
+
+	os.Setenv("HOSTIP", "192.168.1.100")
+	defer os.Unsetenv("HOSTIP")
+
+	input := `traefik-externals {
+		directory ` + tmpDir + `
+	}`
+	c := caddy.NewTestController("dns", input)
+
+	// setup() should succeed and start the watcher
+	err := setup(c)
+	if err != nil {
+		t.Errorf("setup() should succeed with valid directory, got: %v", err)
+	}
+}

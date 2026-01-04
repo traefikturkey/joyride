@@ -2,6 +2,7 @@ package dockercluster
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/coredns/caddy"
@@ -391,11 +392,12 @@ func TestSetupWithClusterBindAddr(t *testing.T) {
 }
 
 func TestSetupWithClusterSecret(t *testing.T) {
+	// Use a 16-byte key for AES-128 (memberlist requires valid AES key sizes)
 	input := `docker-cluster {
 		host_ip 192.168.1.1
 		cluster_enabled true
 		node_name node1
-		cluster_secret mysecretkey
+		cluster_secret mysecretkey12345
 	}`
 
 	c := caddy.NewTestController("dns", input)
@@ -404,8 +406,8 @@ func TestSetupWithClusterSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if string(dc.ClusterConfig.SecretKey) != "mysecretkey" {
-		t.Errorf("expected cluster_secret 'mysecretkey', got %s", string(dc.ClusterConfig.SecretKey))
+	if string(dc.ClusterConfig.SecretKey) != "mysecretkey12345" {
+		t.Errorf("expected cluster_secret 'mysecretkey12345', got %s", string(dc.ClusterConfig.SecretKey))
 	}
 }
 
@@ -437,6 +439,26 @@ func TestSetupWithInvalidClusterPort(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for invalid cluster_port")
+	}
+}
+
+func TestSetupWithInvalidClusterSecretLength(t *testing.T) {
+	// 11 bytes is not a valid AES key size (must be 16, 24, or 32)
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name node1
+		cluster_secret short_key
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Error("expected error for invalid cluster_secret length")
+	}
+	if err != nil && !strings.Contains(err.Error(), "16, 24, or 32 bytes") {
+		t.Errorf("expected AES key size error, got: %v", err)
 	}
 }
 

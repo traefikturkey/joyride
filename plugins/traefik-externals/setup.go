@@ -27,20 +27,14 @@ func setup(c *caddy.Controller) error {
 	// Check if plugin is disabled via environment variable
 	if isDisabled() {
 		log.Info("traefik-externals: disabled via TRAEFIK_EXTERNALS_ENABLED=false")
-		// Register a pass-through handler
-		dnsserver.GetConfig(c).AddPlugin(func(next plugin.Handler) plugin.Handler {
-			return next
-		})
+		// Don't add any handler - plugin is completely disabled
 		return nil
 	}
 
 	// Phase 1.1: Check if directory exists - graceful handling
 	if _, err := os.Stat(te.Watcher.directory); os.IsNotExist(err) {
 		log.Warningf("traefik-externals: directory %s does not exist, plugin disabled", te.Watcher.directory)
-		// Register a pass-through handler instead of failing
-		dnsserver.GetConfig(c).AddPlugin(func(next plugin.Handler) plugin.Handler {
-			return next
-		})
+		// Don't add any handler - plugin is completely disabled
 		return nil
 	}
 

@@ -34,6 +34,15 @@ type DockerWatcher struct {
 	containers map[string][]string // containerID -> hostnames
 }
 
+// truncateID safely truncates a container ID for logging.
+// Docker IDs are normally 64 hex chars, but we handle short IDs gracefully.
+func truncateID(id string, maxLen int) string {
+	if len(id) <= maxLen {
+		return id
+	}
+	return id[:maxLen]
+}
+
 // NewDockerWatcher creates a new Docker watcher.
 func NewDockerWatcher(dockerSocket, hostIP string, labels []string, records *Records) *DockerWatcher {
 	return &DockerWatcher{
@@ -301,14 +310,14 @@ func (dw *DockerWatcher) handleContainerStart(containerID string) {
 	// Inspect container to get labels
 	info, err := cli.ContainerInspect(dw.ctx, containerID)
 	if err != nil {
-		log.Errorf("docker-cluster: failed to inspect container %s: %v", containerID[:12], err)
+		log.Errorf("docker-cluster: failed to inspect container %s: %v", truncateID(containerID, 12), err)
 		return
 	}
 
 	hostnames := dw.extractHostnames(info.Config.Labels)
 	if len(hostnames) > 0 {
 		dw.updateContainer(containerID, hostnames)
-		log.Infof("docker-cluster: container %s started with hostnames: %v", containerID[:12], hostnames)
+		log.Infof("docker-cluster: container %s started with hostnames: %v", truncateID(containerID, 12), hostnames)
 		dw.logCurrentState()
 	}
 }
@@ -338,7 +347,7 @@ func (dw *DockerWatcher) handleContainerStop(containerID string) {
 			}
 		}
 
-		log.Infof("docker-cluster: container %s stopped, removed hostnames: %v", containerID[:12], hostnames)
+		log.Infof("docker-cluster: container %s stopped, removed hostnames: %v", truncateID(containerID, 12), hostnames)
 		dw.logCurrentState()
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/coredns/coredns/plugin/pkg/log"
 )
@@ -36,8 +37,8 @@ type Parser struct {
 	// envVars caches environment variables
 	envVars map[string]string
 
-	// hostRegexpWarned tracks if we've already warned about HostRegexp
-	hostRegexpWarned bool
+	// hostRegexpWarnOnce ensures we only warn about HostRegexp once (thread-safe)
+	hostRegexpWarnOnce sync.Once
 }
 
 // NewParser creates a new Traefik config parser.
@@ -134,10 +135,11 @@ func (p *Parser) ParseContent(content string) []string {
 	// Strip YAML comments before parsing to avoid matching commented-out rules
 	content = p.stripComments(content)
 
-	// Warn about HostRegexp() usage (once per parser instance)
-	if !p.hostRegexpWarned && p.hostRegexpPattern.MatchString(content) {
-		log.Warning("traefik-externals: HostRegexp() rules found but not supported (cannot enumerate regex matches)")
-		p.hostRegexpWarned = true
+	// Warn about HostRegexp() usage (once per parser instance, thread-safe)
+	if p.hostRegexpPattern.MatchString(content) {
+		p.hostRegexpWarnOnce.Do(func() {
+			log.Warning("traefik-externals: HostRegexp() rules found but not supported (cannot enumerate regex matches)")
+		})
 	}
 
 	// Extract hosts from Host() patterns
