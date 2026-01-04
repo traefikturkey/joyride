@@ -39,9 +39,9 @@ COPY plugin.cfg /build/coredns/plugin.cfg
 # -----------------------------------------------------------------------------
 FROM base AS deps
 
-# Copy plugin source files
-COPY plugins/docker-cluster/*.go /build/coredns/plugin/docker-cluster/
-COPY plugins/traefik-externals/*.go /build/coredns/plugin/traefik-externals/
+# Copy plugin source files (including subdirectories like version/)
+COPY plugins/docker-cluster/ /build/coredns/plugin/docker-cluster/
+COPY plugins/traefik-externals/ /build/coredns/plugin/traefik-externals/
 
 # Add dependencies and download (must be after plugin copy so go mod tidy works)
 RUN go get github.com/docker/docker@v28.5.2+incompatible && \
@@ -83,15 +83,39 @@ EXPOSE 54/udp 54/tcp 5454 9153
 # -----------------------------------------------------------------------------
 FROM deps AS builder
 
+# Build arguments for version injection
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+
 # Generate plugin wiring and build static binary
 RUN CGO_ENABLED=0 GOOS=linux go generate && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /coredns .
+    CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w \
+    -X github.com/coredns/coredns/plugin/docker-cluster/version.Version=${VERSION} \
+    -X github.com/coredns/coredns/plugin/docker-cluster/version.GitCommit=${GIT_COMMIT} \
+    -X github.com/coredns/coredns/plugin/docker-cluster/version.BuildTime=${BUILD_TIME}" \
+    -o /coredns .
 
 # -----------------------------------------------------------------------------
 # Stage: production
 # Minimal runtime image - only the binary and essential runtime deps
 # -----------------------------------------------------------------------------
 FROM alpine:3.20 AS production
+
+# Receive build args for labels
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+
+# OCI image labels
+LABEL org.opencontainers.image.title="CoreDNS Docker Cluster"
+LABEL org.opencontainers.image.description="CoreDNS with docker-cluster and traefik-externals plugins"
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.revision="${GIT_COMMIT}"
+LABEL org.opencontainers.image.created="${BUILD_TIME}"
+LABEL org.opencontainers.image.source="https://github.com/traefikturkey/joyride"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # Install minimal runtime dependencies
 # - ca-certificates: HTTPS/TLS support

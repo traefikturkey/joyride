@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
@@ -70,12 +71,29 @@ func setup(c *caddy.Controller) error {
 		return plugin.Error("docker-cluster", err)
 	}
 
+	// Configure version HTTP endpoint port
+	versionAddr := os.Getenv("COREDNS_VERSION_PORT")
+	if versionAddr == "" {
+		versionAddr = ":8081"
+	}
+
+	// Start version HTTP endpoint and capture server reference
+	versionServer := dc.ServeVersionHTTP(versionAddr)
+
 	// Register shutdown handler
 	c.OnShutdown(func() error {
 		dc.Watcher.Stop()
 		if dc.ClusterManager != nil {
 			dc.ClusterManager.Stop()
 		}
+
+		// Shutdown version HTTP server
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := versionServer.Shutdown(ctx); err != nil {
+			log.Errorf("docker-cluster: version server shutdown error: %v", err)
+		}
+
 		return nil
 	})
 

@@ -2,12 +2,16 @@ package dockercluster
 
 import (
 	"context"
+	"encoding/json"
 	"net"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/pkg/fall"
 	"github.com/coredns/coredns/plugin/pkg/log"
+	"github.com/coredns/coredns/plugin/docker-cluster/version"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
 )
@@ -110,4 +114,40 @@ func (dc *DockerCluster) handleUnknown(ctx context.Context, w dns.ResponseWriter
 		log.Debugf("no record found for %s, dropping query", state.Name())
 		return dns.RcodeSuccess, nil
 	}
+}
+
+// versionHandler handles GET /version requests
+func (dc *DockerCluster) versionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(version.GetInfo()); err != nil {
+		log.Errorf("docker-cluster: failed to encode version info: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+// ServeVersionHTTP starts the version HTTP endpoint and returns the server for shutdown
+func (dc *DockerCluster) ServeVersionHTTP(addr string) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/version", dc.versionHandler)
+
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	go func() {
+		log.Infof("docker-cluster: version endpoint listening on %s", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Errorf("docker-cluster: version endpoint failed: %v", err)
+		}
+	}()
+
+	return server
 }
