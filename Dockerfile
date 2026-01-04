@@ -13,8 +13,7 @@
 
 # -----------------------------------------------------------------------------
 # Stage: base
-# Common setup - clones CoreDNS and installs Go dependencies
-# This layer is cached and reused by both dev and production builds
+# Clones CoreDNS source - cached until base image changes
 # -----------------------------------------------------------------------------
 FROM golang:1.24-alpine AS base
 
@@ -23,7 +22,6 @@ RUN apk add --no-cache git curl jq
 WORKDIR /build
 
 # Fetch latest CoreDNS release version and clone
-# This is cached until the base image changes
 RUN COREDNS_VERSION=$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r '.tag_name') && \
     echo "Building with CoreDNS ${COREDNS_VERSION}" && \
     echo "${COREDNS_VERSION}" > /coredns-version && \
@@ -34,8 +32,20 @@ WORKDIR /build/coredns
 # Copy plugin.cfg first (changes less frequently)
 COPY plugin.cfg /build/coredns/plugin.cfg
 
-# Add dependencies to CoreDNS go.mod and download
+# -----------------------------------------------------------------------------
+# Stage: deps
+# Copies plugin source and installs dependencies
+# This layer is cached and reused by both dev and builder stages
+# -----------------------------------------------------------------------------
+FROM base AS deps
+
+# Copy plugin source files
+COPY plugins/docker-cluster/*.go /build/coredns/plugin/docker-cluster/
+COPY plugins/traefik-externals/*.go /build/coredns/plugin/traefik-externals/
+
+# Add dependencies and download (must be after plugin copy so go mod tidy works)
 RUN go get github.com/docker/docker@v28.5.2+incompatible && \
+    go get github.com/hashicorp/memberlist@v0.5.1 && \
     go get github.com/fsnotify/fsnotify@v1.7.0 && \
     go mod tidy && \
     go mod download
@@ -45,14 +55,10 @@ RUN go get github.com/docker/docker@v28.5.2+incompatible && \
 # Development image - includes Go toolchain for rapid iteration
 # Mounts source code as volume for instant rebuilds without re-downloading deps
 # -----------------------------------------------------------------------------
-FROM base AS dev
+FROM deps AS dev
 
 # Install additional dev tools
 RUN apk add --no-cache make build-base
-
-# Copy plugin source files
-COPY plugins/docker-cluster/*.go /build/coredns/plugin/docker-cluster/
-COPY plugins/traefik-externals/*.go /build/coredns/plugin/traefik-externals/
 
 # Generate plugin wiring
 RUN go generate
@@ -75,11 +81,7 @@ EXPOSE 54/udp 54/tcp 5454 9153
 # Stage: builder
 # Compiles the production binary (static, no CGO)
 # -----------------------------------------------------------------------------
-FROM base AS builder
-
-# Copy plugin source files
-COPY plugins/docker-cluster/*.go /build/coredns/plugin/docker-cluster/
-COPY plugins/traefik-externals/*.go /build/coredns/plugin/traefik-externals/
+FROM deps AS builder
 
 # Generate plugin wiring and build static binary
 RUN CGO_ENABLED=0 GOOS=linux go generate && \

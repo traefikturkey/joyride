@@ -31,6 +31,7 @@ test-unit:
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
 		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
 		echo "Running traefik-externals tests..." && \
@@ -51,6 +52,7 @@ test-race:
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
 		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
 		echo "Running tests with race detector..." && \
@@ -120,6 +122,7 @@ audit:
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
 		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
 		govulncheck ./...'

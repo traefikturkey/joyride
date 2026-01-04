@@ -56,6 +56,7 @@ jobs:
         working-directory: /tmp/coredns
         run: |
           go get github.com/docker/docker@v28.5.2+incompatible
+          go get github.com/hashicorp/memberlist@v0.5.1
           go get github.com/fsnotify/fsnotify@v1.7.0
           go mod tidy
           echo "Running traefik-externals tests..."
