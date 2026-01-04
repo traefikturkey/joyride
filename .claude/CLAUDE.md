@@ -51,15 +51,52 @@ Single binary with built-in Docker watching:
 
 ## Key Files
 
-- `plugin/` - CoreDNS plugin source code
-  - `records.go` - Thread-safe DNS record storage (atomic.Value)
-  - `docker_watcher.go` - Docker event monitoring
-  - `docker_cluster.go` - DNS handler (ServeDNS)
-  - `setup.go` - Plugin registration and config parsing
+- `plugins/` - CoreDNS plugin source code
+  - `docker-cluster/` - Main plugin
+    - `records.go` - Thread-safe DNS record storage (atomic.Value)
+    - `docker_watcher.go` - Docker event monitoring
+    - `docker_cluster.go` - DNS handler (ServeDNS)
+    - `setup.go` - Plugin registration and config parsing
+    - `version/` - Build-time version info (ldflags injection)
+  - `traefik-externals/` - Traefik integration plugin
 - `Dockerfile` - Multi-stage build (auto-fetches latest CoreDNS)
 - `Corefile` - CoreDNS configuration
 - `docker-compose.yml` - Production deployment
 - `docker-compose.test.yml` - Integration tests
+
+## Branch Strategy
+
+| Branch | Version | Description |
+|--------|---------|-------------|
+| `main` | 2.x | CoreDNS/Go rewrite (current) |
+| `serf` | 1.5.x | Ruby + Serf clustering (legacy) |
+| `ruby` | 1.0-1.4.x | Original Ruby/dnsmasq (legacy) |
+
+## Commit Conventions
+
+This project uses **Conventional Commits** with **Release-Please** for automated versioning.
+
+**Commit format:** `type(scope): description`
+
+| Type | Version Bump | Example |
+|------|--------------|---------|
+| `feat:` | Minor (2.0→2.1) | `feat: add cluster mode support` |
+| `fix:` | Patch (2.0.0→2.0.1) | `fix: handle empty Docker labels` |
+| `feat!:` | Major (2.0→3.0) | `feat!: change config format` |
+| `docs:` | None | `docs: update Corefile examples` |
+| `chore:` | None | `chore: update dependencies` |
+| `test:` | None | `test: add watcher unit tests` |
+| `refactor:` | None | `refactor: simplify record lookup` |
+
+**Breaking changes:** Add `!` after type OR include `BREAKING CHANGE:` in body.
+
+**How releases work:**
+1. Push commits to `main` using conventional format
+2. Release-Please opens a PR: "chore(main): release X.Y.Z"
+3. Merge the PR → creates git tag, GitHub release, triggers Docker build
+4. Docker images tagged with semver (2.1.0, 2.1, 2, latest)
+
+**Version endpoint:** Query running container at `GET :8081/version` (override with `COREDNS_VERSION_PORT` env var)
 
 ## Corefile Configuration
 
