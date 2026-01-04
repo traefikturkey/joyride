@@ -1,4 +1,4 @@
-.PHONY: build test test-unit test-integration run clean check-coredns-version build-latest audit
+.PHONY: build test test-unit test-race test-integration run clean check-coredns-version build-latest audit
 
 # Default target
 all: build
@@ -14,9 +14,43 @@ build-latest:
 # Run all tests
 test: test-unit test-integration
 
-# Run unit tests
+# Run unit tests (inside Docker with CoreDNS environment)
 test-unit:
-	go test -v -race ./plugin/...
+	@echo "Running unit tests in Docker..."
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.24-alpine sh -c '\
+		apk add --no-cache git curl jq >/dev/null 2>&1 && \
+		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
+		echo "Testing with CoreDNS $$COREDNS_VERSION" && \
+		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
+		cp -r plugin /tmp/coredns/plugin/docker-cluster && \
+		cp -r traefik-externals /tmp/coredns/plugin/traefik-externals && \
+		cp plugin.cfg /tmp/coredns/plugin.cfg && \
+		cd /tmp/coredns && \
+		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go mod tidy && \
+		echo "Running traefik-externals tests..." && \
+		go test -v -timeout 60s ./plugin/traefik-externals/... && \
+		echo "Running docker-cluster tests..." && \
+		go test -v -timeout 60s ./plugin/docker-cluster/...'
+
+# Run unit tests with race detector (slower but catches race conditions)
+test-race:
+	@echo "Running unit tests with race detector in Docker..."
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.24-alpine sh -c '\
+		apk add --no-cache git curl jq build-base >/dev/null 2>&1 && \
+		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
+		echo "Testing with CoreDNS $$COREDNS_VERSION (race detection enabled)" && \
+		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
+		cp -r plugin /tmp/coredns/plugin/docker-cluster && \
+		cp -r traefik-externals /tmp/coredns/plugin/traefik-externals && \
+		cp plugin.cfg /tmp/coredns/plugin.cfg && \
+		cd /tmp/coredns && \
+		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go mod tidy && \
+		echo "Running tests with race detector..." && \
+		CGO_ENABLED=1 go test -v -race -timeout 120s ./plugin/docker-cluster/... ./plugin/traefik-externals/...'
 
 # Run integration tests
 test-integration:
