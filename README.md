@@ -228,6 +228,80 @@ environment:
   - NODE_NAME=node3
 ```
 
+### Inter-VLAN Clustering
+
+When clustering nodes across different VLANs or subnets, UDP broadcast discovery will not work because broadcasts don't cross network boundaries. You must use static `CLUSTER_SEEDS` to connect nodes.
+
+```
+VLAN 10 (10.0.10.x)            VLAN 20 (10.0.20.x)            VLAN 30 (10.0.30.x)
+┌─────────────────┐            ┌─────────────────┐            ┌─────────────────┐
+│ node-web-1      │────────────│ node-seed       │────────────│ node-db-1       │
+│ node-web-2      │            │ (seed node)     │            │ node-db-2       │
+└─────────────────┘            └─────────────────┘            └─────────────────┘
+```
+
+**Seed Node** (10.0.20.10) — starts first, no `CLUSTER_SEEDS`:
+
+```yaml
+services:
+  joyride:
+    image: ghcr.io/traefikturkey/joyride:coredns
+    network_mode: host
+    environment:
+      - HOSTIP=10.0.20.10
+      - CLUSTER_ENABLED=true
+      - NODE_NAME=node-seed
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+
+**Member Nodes** — point to the seed node:
+
+```yaml
+services:
+  joyride:
+    image: ghcr.io/traefikturkey/joyride:coredns
+    network_mode: host
+    environment:
+      - HOSTIP=10.0.10.11
+      - CLUSTER_ENABLED=true
+      - NODE_NAME=node-web-1
+      - CLUSTER_SEEDS=10.0.20.10:7946
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+
+#### Startup Order
+
+**Single seed:** The seed node must be running before member nodes start. Members will log `connection refused` errors until the seed is available.
+
+**Multiple seeds (recommended):** For resilience, configure 2-3 seed nodes. Any running seed allows new nodes to join, eliminating strict startup ordering:
+
+```yaml
+environment:
+  - CLUSTER_SEEDS=10.0.20.10:7946,10.0.10.11:7946
+```
+
+#### Firewall Requirements
+
+Ensure these ports are open between all cluster nodes:
+
+| Port | Protocol | Purpose |
+|------|----------|---------|  
+| 7946 | TCP/UDP | Memberlist gossip |
+| 54 | TCP/UDP | DNS (default joyride port) |
+
+**Note:** If you have configured joyride to listen on port 53 (standard DNS port), open port 53 instead of 54.
+
+#### Encryption
+
+For traffic crossing untrusted network segments, enable cluster encryption by setting `CLUSTER_SECRET` to the same value on all nodes:
+
+```yaml
+environment:
+  - CLUSTER_SECRET=your-shared-secret-key
+```
+
 ### Cluster Environment Variables
 
 | Variable | Description | Default |
@@ -253,6 +327,16 @@ environment:
 # Run 3-node cluster test
 make test-cluster
 ```
+
+### Cluster Troubleshooting
+
+| Log Message | Cause | Solution |
+|-------------|-------|----------|
+| `failed to join <ip>:7946: connection refused` | Seed node not running or firewall blocking port 7946 | Ensure seed node is started first; verify port 7946 is open (TCP/UDP) between nodes |
+| `Refuting a dead message` | Normal during rejoin; another node had marked this node as dead | No action needed — node is announcing it's back online |
+| `failed to join` on startup (multiple seeds) | Some seed nodes unavailable | Expected if not all seeds are running; node will use available seeds |
+| Nodes not seeing each other's DNS records | Clustering not enabled on all nodes | Verify `CLUSTER_ENABLED=true` is set on every node |
+| `memberlist: Initiating push/pull sync` | Normal protocol operation | Informational — nodes are synchronizing state |
 
 ## EdgeRouter Setup
 
