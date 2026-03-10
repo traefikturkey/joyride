@@ -15,7 +15,7 @@
 # Stage: base
 # Clones CoreDNS source - cached until base image changes
 # -----------------------------------------------------------------------------
-FROM golang:1.24-alpine AS base
+FROM golang:1.25-alpine AS base
 
 RUN apk add --no-cache git curl jq
 
