@@ -15,15 +15,18 @@
 # Stage: base
 # Clones CoreDNS source - cached until base image changes
 # -----------------------------------------------------------------------------
-FROM golang:1.25-alpine AS base
+# Pinned by digest for reproducibility (Dependabot keeps this current).
+FROM golang:1.25-alpine@sha256:5caaf1cca9dc351e13deafbc3879fd4754801acba8653fa9540cea125d01a71f AS base
 
-RUN apk add --no-cache git curl jq
+RUN apk add --no-cache git
+
+# Pinned CoreDNS version. Keep in sync with go.mod and the test job in
+# .github/workflows/docker-publish.yml. Bump deliberately, not implicitly.
+ARG COREDNS_VERSION=v1.14.3
 
 WORKDIR /build
 
-# Fetch latest CoreDNS release version and clone
-RUN COREDNS_VERSION=$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r '.tag_name') && \
-    echo "Building with CoreDNS ${COREDNS_VERSION}" && \
+RUN echo "Building with CoreDNS ${COREDNS_VERSION}" && \
     echo "${COREDNS_VERSION}" > /coredns-version && \
     git clone --depth 1 --branch ${COREDNS_VERSION} https://github.com/coredns/coredns.git
 
@@ -101,7 +104,7 @@ RUN CGO_ENABLED=0 GOOS=linux go generate && \
 # Stage: production
 # Minimal runtime image - only the binary and essential runtime deps
 # -----------------------------------------------------------------------------
-FROM alpine:3.20 AS production
+FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc AS production
 
 # Receive build args for labels
 ARG VERSION=dev
@@ -132,13 +135,14 @@ COPY --from=builder /coredns /coredns
 
 # Create entrypoint script
 # - Auto-detects HOSTIP from default route if not set
-# - Fixes Docker socket permissions
+# - Grants coredns user access to the Docker socket via group membership
+#   (matches the socket's GID instead of chmod 666, so the socket stays
+#   readable only to root + that group, not world)
 # - Drops privileges to coredns user
 RUN cat > /entrypoint.sh << 'EOF'
 #!/bin/sh
 set -e
 
-# Auto-detect HOSTIP if not set (requires host networking)
 if [ -z "$HOSTIP" ]; then
     HOSTIP=$(ip route get 1 2>/dev/null | awk '{print $7}' | head -1)
     if [ -n "$HOSTIP" ]; then
@@ -148,14 +152,16 @@ if [ -z "$HOSTIP" ]; then
 fi
 
 if [ "$(id -u)" = "0" ]; then
-    # Try to make Docker socket readable by coredns user
     if [ -S /var/run/docker.sock ]; then
-        if chmod 666 /var/run/docker.sock 2>/dev/null; then
-            exec su-exec coredns /coredns -conf /etc/coredns/Corefile "$@"
+        SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
+        if ! getent group "$SOCK_GID" >/dev/null 2>&1; then
+            addgroup -g "$SOCK_GID" dockersock
         fi
+        SOCK_GROUP=$(getent group "$SOCK_GID" | cut -d: -f1)
+        addgroup coredns "$SOCK_GROUP" >/dev/null 2>&1 || true
+        exec su-exec coredns /coredns -conf /etc/coredns/Corefile "$@"
     fi
-    # Chmod failed or no socket - run as root
-    exec /coredns -conf /etc/coredns/Corefile "$@"
+    exec su-exec coredns /coredns -conf /etc/coredns/Corefile "$@"
 else
     exec /coredns -conf /etc/coredns/Corefile "$@"
 fi

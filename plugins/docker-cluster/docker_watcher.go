@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/miekg/dns"
 )
 
 // RecordChangeCallback is called when DNS records are added or removed.
@@ -406,24 +407,56 @@ func (dw *DockerWatcher) updateContainer(containerID string, newHostnames []stri
 }
 
 // extractHostnames extracts hostnames from container labels.
+// Label values are container-controlled, so each candidate is validated as a
+// DNS name and bounded to RFC 1035's 253-byte limit before being trusted.
+// Invalid entries are dropped with a warning rather than served as records.
 func (dw *DockerWatcher) extractHostnames(labels map[string]string) []string {
 	var hostnames []string
 	seen := make(map[string]bool)
 
 	for _, labelName := range dw.labels {
-		if value, ok := labels[labelName]; ok {
-			parts := strings.Split(value, ",")
-			for _, part := range parts {
-				hostname := strings.TrimSpace(part)
-				if hostname != "" && !seen[hostname] {
-					seen[hostname] = true
-					hostnames = append(hostnames, hostname)
-				}
+		value, ok := labels[labelName]
+		if !ok {
+			continue
+		}
+		for _, part := range strings.Split(value, ",") {
+			hostname := strings.TrimSpace(part)
+			if hostname == "" || seen[hostname] {
+				continue
 			}
+			if !isValidHostname(hostname) {
+				log.Warningf("docker-cluster: ignoring invalid hostname %q from label %s", hostname, labelName)
+				continue
+			}
+			seen[hostname] = true
+			hostnames = append(hostnames, hostname)
 		}
 	}
 
 	return hostnames
+}
+
+// isValidHostname returns true if name is a syntactically valid DNS name
+// of acceptable length and contains only RFC 1035 hostname characters
+// (letters, digits, hyphen, dot). miekg/dns.IsDomainName tolerates some
+// bytes we don't want to serve, so we screen the bytes ourselves first.
+func isValidHostname(name string) bool {
+	if len(name) == 0 || len(name) > 253 {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c >= 'a' && c <= 'z':
+		case c >= 'A' && c <= 'Z':
+		case c >= '0' && c <= '9':
+		case c == '-' || c == '.':
+		default:
+			return false
+		}
+	}
+	_, ok := dns.IsDomainName(name)
+	return ok
 }
 
 // sleep waits for the specified duration or until context is cancelled.

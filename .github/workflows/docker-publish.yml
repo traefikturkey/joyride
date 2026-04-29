@@ -31,6 +31,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Keep in sync with the COREDNS_VERSION ARG in Dockerfile.
+  COREDNS_VERSION: v1.14.3
 
 jobs:
   test:
@@ -42,11 +44,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Download CoreDNS for plugin dependencies
         run: |
-          COREDNS_VERSION=$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r '.tag_name')
           echo "Testing with CoreDNS ${COREDNS_VERSION}"
           git clone --depth 1 --branch ${COREDNS_VERSION} https://github.com/coredns/coredns.git /tmp/coredns
           cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster
@@ -72,7 +73,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write
 
     steps:
       - name: Checkout repository
@@ -120,6 +120,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
+            COREDNS_VERSION=${{ env.COREDNS_VERSION }}
             VERSION=${{ steps.meta.outputs.version }}
             GIT_COMMIT=${{ github.sha }}
             BUILD_TIME=${{ steps.timestamp.outputs.time }}
