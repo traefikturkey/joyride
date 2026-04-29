@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3](https://github.com/traefikturkey/joyride/compare/v2.4.2...v2.4.3) (2026-04-29)
+
+
+### Bug Fixes
+
+* security and supply-chain hardening ([#17](https://github.com/traefikturkey/joyride/issues/17)) ([7782f44](https://github.com/traefikturkey/joyride/commit/7782f44bd444e59b7e223e2d0a212945c05290a7))
+
 ## [2.4.2](https://github.com/traefikturkey/joyride/compare/v2.4.1...v2.4.2) (2026-03-10)
 
 
