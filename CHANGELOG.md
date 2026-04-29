@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2](https://github.com/traefikturkey/joyride/compare/v2.4.1...v2.4.2) (2026-03-10)
+
+
+### Bug Fixes
+
+* update Go base image to 1.25 for CoreDNS 1.14.2 compatibility ([3e510c4](https://github.com/traefikturkey/joyride/commit/3e510c4496b238bed50ded70ad6a2f4c1449e081))
+
 ## [2.4.1](https://github.com/traefikturkey/joyride/compare/v2.4.0...v2.4.1) (2026-01-04)
 
 
