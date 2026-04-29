@@ -9,7 +9,6 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
-      - CHOWN        # Required to chmod docker socket
       - SETUID       # Required for su-exec to drop privileges
       - SETGID       # Required for su-exec to drop privileges
     security_opt:
@@ -24,7 +23,7 @@ services:
       # Set to 'false' to disable traefik-externals plugin
       # - TRAEFIK_EXTERNALS_ENABLED=true
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./Corefile:/etc/coredns/Corefile:ro
       - ./etc/joyride/hosts.d:/etc/hosts.d:ro
       # Mount Traefik external configs (from onramp project)

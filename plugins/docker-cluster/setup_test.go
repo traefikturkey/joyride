@@ -391,13 +391,14 @@ func TestSetupWithClusterBindAddr(t *testing.T) {
 	}
 }
 
-func TestSetupWithClusterSecret(t *testing.T) {
-	// Use a 16-byte key for AES-128 (memberlist requires valid AES key sizes)
+func TestSetupWithClusterSecretEnv(t *testing.T) {
+	// 16-byte key for AES-128 (memberlist requires valid AES key sizes).
+	t.Setenv("CLUSTER_SECRET", "mysecretkey12345")
+
 	input := `docker-cluster {
 		host_ip 192.168.1.1
 		cluster_enabled true
 		node_name node1
-		cluster_secret mysecretkey12345
 	}`
 
 	c := caddy.NewTestController("dns", input)
@@ -407,7 +408,26 @@ func TestSetupWithClusterSecret(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if string(dc.ClusterConfig.SecretKey) != "mysecretkey12345" {
-		t.Errorf("expected cluster_secret 'mysecretkey12345', got %s", string(dc.ClusterConfig.SecretKey))
+		t.Errorf("expected CLUSTER_SECRET 'mysecretkey12345', got %s", string(dc.ClusterConfig.SecretKey))
+	}
+}
+
+func TestSetupRejectsClusterSecretInCorefile(t *testing.T) {
+	input := `docker-cluster {
+		host_ip 192.168.1.1
+		cluster_enabled true
+		node_name node1
+		cluster_secret mysecretkey12345
+	}`
+
+	c := caddy.NewTestController("dns", input)
+	_, err := parseConfig(c)
+
+	if err == nil {
+		t.Fatal("expected error when cluster_secret is set via Corefile")
+	}
+	if !strings.Contains(err.Error(), "CLUSTER_SECRET") {
+		t.Errorf("expected error to point at CLUSTER_SECRET env var, got: %v", err)
 	}
 }
 
@@ -443,12 +463,13 @@ func TestSetupWithInvalidClusterPort(t *testing.T) {
 }
 
 func TestSetupWithInvalidClusterSecretLength(t *testing.T) {
-	// 11 bytes is not a valid AES key size (must be 16, 24, or 32)
+	// 9 bytes is not a valid AES key size (must be 16, 24, or 32).
+	t.Setenv("CLUSTER_SECRET", "short_key")
+
 	input := `docker-cluster {
 		host_ip 192.168.1.1
 		cluster_enabled true
 		node_name node1
-		cluster_secret short_key
 	}`
 
 	c := caddy.NewTestController("dns", input)

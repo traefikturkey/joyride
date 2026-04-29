@@ -204,10 +204,7 @@ func parseConfig(c *caddy.Controller) (*DockerCluster, error) {
 				clusterConfig.BindAddr = c.Val()
 
 			case "cluster_secret":
-				if !c.NextArg() {
-					return nil, c.ArgErr()
-				}
-				clusterConfig.SecretKey = []byte(c.Val())
+				return nil, c.Err("cluster_secret in Corefile is not supported; set the CLUSTER_SECRET environment variable instead so the key is not committed to source control")
 
 			case "discovery_port":
 				if !c.NextArg() {
