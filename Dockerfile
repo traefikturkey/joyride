@@ -104,7 +104,7 @@ RUN CGO_ENABLED=0 GOOS=linux go generate && \
 # Stage: production
 # Minimal runtime image - only the binary and essential runtime deps
 # -----------------------------------------------------------------------------
-FROM alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d AS production
+FROM alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS production
 
 # Receive build args for labels
 ARG VERSION=dev
