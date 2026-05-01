@@ -11,6 +11,10 @@ import (
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/pkg/fall"
 	"github.com/coredns/coredns/plugin/pkg/log"
+	// Path resolves only at Docker build time, after this directory is copied
+	// into the cloned CoreDNS source tree at /build/coredns/plugin/docker-cluster.
+	// Static analyzers (CodeQL, `go build` from this repo root) cannot resolve
+	// it; the warning is expected.
 	"github.com/coredns/coredns/plugin/docker-cluster/version"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"

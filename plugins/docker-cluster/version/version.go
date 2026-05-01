@@ -2,7 +2,10 @@
 package version
 
 // Version information set at build time via ldflags.
-// Example: go build -ldflags="-X 'github.com/traefikturkey/joyride/plugins/docker-cluster/version.Version=1.0.0'"
+// At build time this package's import path is
+// github.com/coredns/coredns/plugin/docker-cluster/version
+// because the plugin source is copied into the cloned CoreDNS module tree.
+// See the Dockerfile builder stage for the matching -X flags.
 var (
 	// Version is the semantic version (e.g., "1.0.0")
 	Version = "dev"
