@@ -3,10 +3,10 @@ module github.com/ilude/coredns-docker-cluster
 go 1.25.0
 
 require (
-	github.com/coredns/caddy v1.1.4-0.20250930002214-15135a999495
+	github.com/coredns/caddy v1.1.4
 	github.com/coredns/coredns v1.14.3
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.0
 	github.com/hashicorp/memberlist v0.5.4
 	github.com/miekg/dns v1.1.72
 	github.com/prometheus/client_golang v1.23.2
