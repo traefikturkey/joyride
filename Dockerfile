@@ -125,13 +125,18 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 # - wget: health checks
 # - su-exec: privilege dropping (smaller than gosu)
 # - iproute2: HOSTIP auto-detection
-RUN apk add --no-cache ca-certificates wget su-exec iproute2
+# - libcap: setcap, so the non-root coredns user can bind privileged ports (:54)
+RUN apk add --no-cache ca-certificates wget su-exec iproute2 libcap
 
 # Create non-root user
 RUN adduser -D -u 1000 coredns
 
-# Copy the static binary
+# Copy the static binary and grant it the file capability needed to bind
+# privileged ports (DNS on :54) when running as the non-root coredns user.
+# NET_BIND_SERVICE is already in the container's bounding set via cap_add,
+# so this does not escalate beyond what compose already grants.
 COPY --from=builder /coredns /coredns
+RUN setcap cap_net_bind_service=+ep /coredns
 
 # Create entrypoint script
 # - Auto-detects HOSTIP from default route if not set
