@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.4](https://github.com/traefikturkey/joyride/compare/v2.4.3...v2.4.4) (2026-05-01)
+
+
+### Bug Fixes
+
+* grant coredns process capability to bind privileged ports ([#20](https://github.com/traefikturkey/joyride/issues/20)) ([eb81e8d](https://github.com/traefikturkey/joyride/commit/eb81e8dbc8f4f6aa603ce33c6d3d1e1cc553a0ed))
+
 ## [2.4.3](https://github.com/traefikturkey/joyride/compare/v2.4.2...v2.4.3) (2026-04-29)
 
 
