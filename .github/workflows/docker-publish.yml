@@ -4,15 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches: [ '**' ]
-    paths:
-      - 'plugins/**/*'
-      - 'Dockerfile'
-      - 'Corefile'
-      - 'Corefile.cluster'
-      - 'go.mod'
-      - 'go.sum'
-      - 'plugin.cfg'
-      - '.github/workflows/docker-publish.yml'
+    # Trigger on release tags so release-please-created tags publish a
+    # semver-tagged image. paths filters cannot be used here -- they block
+    # tag-push events (which lack file-change context). Build cache keeps
+    # branch-push runs cheap when nothing relevant changed.
+    tags: [ 'v*' ]
   pull_request:
     branches: [ "coredns" ]
     types: [ closed ]
