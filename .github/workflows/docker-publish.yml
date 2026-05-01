@@ -128,7 +128,7 @@ jobs:
       - name: Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        uses: rjstone/discord-webhook-notify@01048062ed2ede823b45ad410d2b4cbe2db59606 # v1.0.4
+        uses: rjstone/discord-webhook-notify@89b0bf43c2c8514f70d0dcba4a706b904e8a3112 # v1.0.4
         with:
           severity: info
           username: MafenBot
