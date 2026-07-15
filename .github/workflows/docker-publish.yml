@@ -53,10 +53,14 @@ jobs:
       - name: Run unit tests
         working-directory: /tmp/coredns
         run: |
-          go get github.com/docker/docker@v28.5.2+incompatible
+          go get github.com/moby/moby/api@v1.55.0
+          go get github.com/moby/moby/client@v0.5.0
           go get github.com/hashicorp/memberlist@v0.5.1
           go get github.com/fsnotify/fsnotify@v1.10.0
           go mod tidy
+          test "$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0
+          test "$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0
+          go list -m github.com/moby/moby/api github.com/moby/moby/client
           echo "Running traefik-externals tests..."
           go test -v -timeout 60s ./plugin/traefik-externals/...
           echo "Running docker-cluster tests..."

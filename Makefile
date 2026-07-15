@@ -4,8 +4,10 @@
 all: build
 
 # Build production image (minimal, ~15MB)
+IMAGE_TAG ?= coredns-docker-cluster
+
 build:
-	docker build --target production -t coredns-docker-cluster .
+	docker build --target production -t $(IMAGE_TAG) .
 
 # Build development image (includes Go toolchain for quick rebuilds)
 build-dev:
@@ -21,19 +23,23 @@ test: test-unit test-integration
 # Run unit tests (inside Docker with CoreDNS environment)
 test-unit:
 	@echo "Running unit tests in Docker..."
-	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.24-alpine sh -c '\
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.25-alpine sh -c '\
 		apk add --no-cache git curl jq >/dev/null 2>&1 && \
-		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
+		COREDNS_VERSION=v1.14.3 && \
 		echo "Testing with CoreDNS $$COREDNS_VERSION" && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
 		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/moby/moby/api@v1.55.0 && \
+		go get github.com/moby/moby/client@v0.5.0 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		echo "Running traefik-externals tests..." && \
 		go test -v -timeout 60s ./plugin/traefik-externals/... && \
 		echo "Running docker-cluster tests..." && \
@@ -42,26 +48,37 @@ test-unit:
 # Run unit tests with race detector (slower but catches race conditions)
 test-race:
 	@echo "Running unit tests with race detector in Docker..."
-	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.24-alpine sh -c '\
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.25-alpine sh -c '\
 		apk add --no-cache git curl jq build-base >/dev/null 2>&1 && \
-		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
+		COREDNS_VERSION=v1.14.3 && \
 		echo "Testing with CoreDNS $$COREDNS_VERSION (race detection enabled)" && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
 		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/moby/moby/api@v1.55.0 && \
+		go get github.com/moby/moby/client@v0.5.0 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		echo "Running tests with race detector..." && \
 		CGO_ENABLED=1 go test -v -race -timeout 120s ./plugin/docker-cluster/... ./plugin/traefik-externals/...'
 
 # Run integration tests
+TEST_PROJECT ?= joyride-test
+TEST_IMAGE ?= joyride-test-coredns
+
 test-integration:
-	docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
-	docker compose -f docker-compose.test.yml down -v
+	@set +e; \
+	cleanup() { TEST_IMAGE="$(TEST_IMAGE)" docker compose --project-name "$(TEST_PROJECT)" -f docker-compose.test.yml down -v --remove-orphans; }; \
+	trap 'status=$$?; trap - EXIT INT TERM; cleanup; cleanup_status=$$?; if [ $$status -ne 0 ]; then exit $$status; else exit $$cleanup_status; fi' EXIT INT TERM; \
+	TEST_IMAGE="$(TEST_IMAGE)" docker compose --project-name "$(TEST_PROJECT)" -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from dns-tester; \
+	tester_status=$$?; \
+	exit $$tester_status
 
 # Run cluster tests (Phase 2)
 test-cluster:
@@ -112,19 +129,23 @@ lint:
 # Audit dependencies for known vulnerabilities (uses govulncheck via Docker)
 audit:
 	@echo "Scanning for vulnerabilities..."
-	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.24-alpine sh -c '\
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.25-alpine sh -c '\
 		apk add --no-cache git curl jq >/dev/null 2>&1 && \
 		go install golang.org/x/vuln/cmd/govulncheck@latest && \
-		COREDNS_VERSION=$$(curl -s https://api.github.com/repos/coredns/coredns/releases/latest | jq -r ".tag_name") && \
+		COREDNS_VERSION=v1.14.3 && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
 		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/docker/docker@v28.5.2+incompatible && \
+		go get github.com/moby/moby/api@v1.55.0 && \
+		go get github.com/moby/moby/client@v0.5.0 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		govulncheck ./...'
 
 # Generate test coverage report
