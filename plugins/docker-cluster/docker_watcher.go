@@ -2,16 +2,16 @@ package dockercluster
 
 import (
 	"context"
+	"io"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/coredns/coredns/plugin/pkg/log"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
 	"github.com/miekg/dns"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/client"
 )
 
 // RecordChangeCallback is called when DNS records are added or removed.
@@ -150,9 +150,7 @@ func (dw *DockerWatcher) watchLoop() {
 
 // connect establishes a connection to the Docker daemon.
 func (dw *DockerWatcher) connect() error {
-	opts := []client.Opt{
-		client.WithAPIVersionNegotiation(),
-	}
+	var opts []client.Opt
 
 	if dw.dockerSocket != "" {
 		opts = append(opts, client.WithHost(dw.dockerSocket))
@@ -164,7 +162,7 @@ func (dw *DockerWatcher) connect() error {
 	}
 
 	// Verify connection by pinging the daemon
-	_, err = cli.Ping(dw.ctx)
+	_, err = cli.Ping(dw.ctx, client.PingOptions{NegotiateAPIVersion: true})
 	if err != nil {
 		cli.Close()
 		return err
@@ -200,8 +198,8 @@ func (dw *DockerWatcher) syncContainers() error {
 	}
 
 	// Get all running containers
-	containers, err := cli.ContainerList(dw.ctx, container.ListOptions{
-		Filters: filters.NewArgs(filters.Arg("status", "running")),
+	containers, err := cli.ContainerList(dw.ctx, client.ContainerListOptions{
+		Filters: make(client.Filters).Add("status", "running"),
 	})
 	if err != nil {
 		return err
@@ -211,11 +209,9 @@ func (dw *DockerWatcher) syncContainers() error {
 	seen := make(map[string]bool)
 
 	// Process each container
-	for _, c := range containers {
-		hostnames := dw.extractHostnames(c.Labels)
-		if len(hostnames) > 0 {
+	for _, c := range containers.Items {
+		if dw.applyContainerSummary(c) {
 			seen[c.ID] = true
-			dw.updateContainer(c.ID, hostnames)
 		}
 	}
 
@@ -262,28 +258,36 @@ func (dw *DockerWatcher) watchEvents() error {
 	}
 
 	// Subscribe to container events
-	eventFilter := filters.NewArgs()
-	eventFilter.Add("type", "container")
-	eventFilter.Add("event", "start")
-	eventFilter.Add("event", "stop")
-	eventFilter.Add("event", "die")
+	eventFilter := make(client.Filters).
+		Add("type", "container").
+		Add("event", "start", "stop", "die")
 
-	eventChan, errChan := cli.Events(dw.ctx, events.ListOptions{
+	result := cli.Events(dw.ctx, client.EventsListOptions{
 		Filters: eventFilter,
 	})
 
 	log.Info("docker-cluster: watching for container events")
+	return consumeEvents(dw.ctx, result.Messages, result.Err, dw.handleEvent)
+}
 
+// consumeEvents dispatches Docker events until cancellation or stream failure.
+func consumeEvents(ctx context.Context, messages <-chan events.Message, errs <-chan error, handle func(events.Message)) error {
 	for {
 		select {
-		case <-dw.ctx.Done():
+		case <-ctx.Done():
 			return nil
-
-		case err := <-errChan:
+		case err, ok := <-errs:
+			if !ok || err == nil {
+				return io.EOF
+			}
 			return err
-
-		case event := <-eventChan:
-			dw.handleEvent(event)
+		case event, ok := <-messages:
+			// Messages is not closed by Moby v0.5, but avoid dispatching zero values
+			// if a different producer closes it.
+			if !ok {
+				return io.EOF
+			}
+			handle(event)
 		}
 	}
 }
@@ -309,18 +313,39 @@ func (dw *DockerWatcher) handleContainerStart(containerID string) {
 	}
 
 	// Inspect container to get labels
-	info, err := cli.ContainerInspect(dw.ctx, containerID)
+	info, err := cli.ContainerInspect(dw.ctx, containerID, client.ContainerInspectOptions{})
 	if err != nil {
 		log.Errorf("docker-cluster: failed to inspect container %s: %v", truncateID(containerID, 12), err)
 		return
 	}
 
-	hostnames := dw.extractHostnames(info.Config.Labels)
+	hostnames := dw.applyContainerInspect(containerID, info.Container)
 	if len(hostnames) > 0 {
-		dw.updateContainer(containerID, hostnames)
 		log.Infof("docker-cluster: container %s started with hostnames: %v", truncateID(containerID, 12), hostnames)
 		dw.logCurrentState()
 	}
+}
+
+// applyContainerSummary adds records from a container-list summary.
+func (dw *DockerWatcher) applyContainerSummary(summary container.Summary) bool {
+	hostnames := dw.extractHostnames(summary.Labels)
+	if len(hostnames) == 0 {
+		return false
+	}
+	dw.updateContainer(summary.ID, hostnames)
+	return true
+}
+
+// applyContainerInspect adds records from a container-inspect response.
+func (dw *DockerWatcher) applyContainerInspect(containerID string, info container.InspectResponse) []string {
+	if info.Config == nil {
+		return nil
+	}
+	hostnames := dw.extractHostnames(info.Config.Labels)
+	if len(hostnames) > 0 {
+		dw.updateContainer(containerID, hostnames)
+	}
+	return hostnames
 }
 
 // handleContainerStop processes a container stop or die event.

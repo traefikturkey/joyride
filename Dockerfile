@@ -47,10 +47,14 @@ COPY plugins/docker-cluster/ /build/coredns/plugin/docker-cluster/
 COPY plugins/traefik-externals/ /build/coredns/plugin/traefik-externals/
 
 # Add dependencies and download (must be after plugin copy so go mod tidy works)
-RUN go get github.com/docker/docker@v28.5.2+incompatible && \
+RUN go get github.com/moby/moby/api@v1.55.0 && \
+    go get github.com/moby/moby/client@v0.5.0 && \
     go get github.com/hashicorp/memberlist@v0.5.1 && \
     go get github.com/fsnotify/fsnotify@v1.7.0 && \
     go mod tidy && \
+    test "$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
+    test "$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+    go list -m github.com/moby/moby/api github.com/moby/moby/client && \
     go mod download
 
 # -----------------------------------------------------------------------------
