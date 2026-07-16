@@ -23,19 +23,3 @@ Thumbs.db
 # Build artifacts
 coverage.out
 coverage.html
-
-.specs/archive/migrate-moby-client/evidence/build-image-inspect.json
-.specs/archive/migrate-moby-client/evidence/f1-validation.status
-.specs/archive/migrate-moby-client/evidence/f2-validation.status
-.specs/archive/migrate-moby-client/evidence/f4-validation.status
-.specs/archive/migrate-moby-client/evidence/integration-image-tag.txt
-.specs/archive/migrate-moby-client/evidence/t4-compose-config.yml
-.specs/archive/migrate-moby-client/evidence/t4-validation.status
-.specs/archive/migrate-moby-client/evidence/test-integration.status
-.specs/archive/migrate-moby-client/evidence/test-race.status
-.specs/archive/migrate-moby-client/evidence/test-unit.status
-.specs/archive/migrate-moby-client/evidence/unexpected-paths.txt
-.specs/archive/migrate-moby-client/evidence/v2-validation.status
-.specs/archive/migrate-moby-client/evidence/v3-validation.status
-.specs/archive/migrate-moby-client/evidence/validation-image-tag.txt
-.specs/archive/migrate-moby-client/evidence/validation-project.txt
