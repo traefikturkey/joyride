@@ -2,6 +2,7 @@ package dockercluster
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -17,6 +18,8 @@ import (
 // RecordChangeCallback is called when DNS records are added or removed.
 // timestamp is Unix nanoseconds, used for cluster LWW conflict resolution.
 type RecordChangeCallback func(hostname, ip string, added bool, timestamp int64)
+
+const containerSyncInterval = time.Minute
 
 // DockerWatcher monitors Docker container events and updates DNS records.
 type DockerWatcher struct {
@@ -128,8 +131,13 @@ func (dw *DockerWatcher) watchLoop() {
 		// Reset backoff on successful connection
 		backoff = time.Second
 
-		// Sync existing containers
-		if err := dw.syncContainers(); err != nil {
+		// Subscribe before the initial sync so container events cannot be missed
+		// between listing running containers and opening the event stream.
+		eventsCtx, cancelEvents := context.WithCancel(dw.ctx)
+		eventResult := dw.subscribeEvents(eventsCtx)
+
+		if err := dw.syncContainers(true); err != nil {
+			cancelEvents()
 			log.Errorf("docker-cluster: failed to sync containers: %v", err)
 			dw.closeClient()
 			dw.sleep(backoff)
@@ -137,14 +145,15 @@ func (dw *DockerWatcher) watchLoop() {
 			continue
 		}
 
-		// Watch for events
-		if err := dw.watchEvents(); err != nil {
+		if err := dw.watchEvents(eventResult); err != nil {
+			cancelEvents()
 			log.Errorf("docker-cluster: event stream error: %v", err)
 			dw.closeClient()
 			dw.sleep(backoff)
 			backoff = dw.nextBackoff(backoff, maxBackoff)
 			continue
 		}
+		cancelEvents()
 	}
 }
 
@@ -188,7 +197,7 @@ func (dw *DockerWatcher) closeClient() {
 }
 
 // syncContainers fetches all running containers and syncs their DNS records.
-func (dw *DockerWatcher) syncContainers() error {
+func (dw *DockerWatcher) syncContainers(logState bool) error {
 	dw.mu.RLock()
 	cli := dw.client
 	dw.mu.RUnlock()
@@ -242,36 +251,62 @@ func (dw *DockerWatcher) syncContainers() error {
 		}
 	}
 
-	log.Infof("docker-cluster: synced %d containers with DNS records", len(seen))
-	dw.logCurrentState()
+	if logState {
+		log.Infof("docker-cluster: synced %d containers with DNS records", len(seen))
+		dw.logCurrentState()
+	}
 	return nil
 }
 
-// watchEvents subscribes to Docker events and processes container start/stop events.
-func (dw *DockerWatcher) watchEvents() error {
+// subscribeEvents opens the Docker event stream before the initial container
+// sync. The Moby client does not return until the HTTP stream is established.
+func (dw *DockerWatcher) subscribeEvents(ctx context.Context) client.EventsResult {
 	dw.mu.RLock()
 	cli := dw.client
 	dw.mu.RUnlock()
 
-	if cli == nil {
-		return nil
-	}
-
-	// Subscribe to container events
 	eventFilter := make(client.Filters).
 		Add("type", "container").
 		Add("event", "start", "stop", "die")
 
-	result := cli.Events(dw.ctx, client.EventsListOptions{
-		Filters: eventFilter,
-	})
-
 	log.Info("docker-cluster: watching for container events")
-	return consumeEvents(dw.ctx, result.Messages, result.Err, dw.handleEvent)
+	return cli.Events(ctx, client.EventsListOptions{Filters: eventFilter})
+}
+
+// watchEvents processes Docker events and periodically reconciles records with
+// running containers so missed or remotely removed records are repaired.
+func (dw *DockerWatcher) watchEvents(result client.EventsResult) error {
+	ticker := time.NewTicker(containerSyncInterval)
+	defer ticker.Stop()
+
+	return consumeEventsWithReconcile(
+		dw.ctx,
+		result.Messages,
+		result.Err,
+		ticker.C,
+		dw.handleEvent,
+		func() error {
+			if err := dw.syncContainers(false); err != nil {
+				return fmt.Errorf("periodic container sync failed: %w", err)
+			}
+			return nil
+		},
+	)
 }
 
 // consumeEvents dispatches Docker events until cancellation or stream failure.
 func consumeEvents(ctx context.Context, messages <-chan events.Message, errs <-chan error, handle func(events.Message)) error {
+	return consumeEventsWithReconcile(ctx, messages, errs, nil, handle, nil)
+}
+
+func consumeEventsWithReconcile(
+	ctx context.Context,
+	messages <-chan events.Message,
+	errs <-chan error,
+	reconcile <-chan time.Time,
+	handle func(events.Message),
+	syncRecords func() error,
+) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -288,6 +323,10 @@ func consumeEvents(ctx context.Context, messages <-chan events.Message, errs <-c
 				return io.EOF
 			}
 			handle(event)
+		case <-reconcile:
+			if err := syncRecords(); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -408,9 +447,11 @@ func (dw *DockerWatcher) updateContainer(containerID string, newHostnames []stri
 		}
 	}
 
-	// Add new hostnames
+	// Add new hostnames and repair records removed outside the local Docker
+	// event stream, such as by a stale cluster update.
 	for _, h := range newHostnames {
-		if !oldSet[h] {
+		currentIP, exists := dw.records.Lookup(h)
+		if !oldSet[h] || !exists || currentIP != dw.hostIP {
 			dw.records.Add(h, dw.hostIP)
 			added = append(added, h)
 		}

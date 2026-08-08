@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
@@ -181,6 +182,90 @@ func TestHandleEventRemovesStoppedContainers(t *testing.T) {
 			}
 			if _, ok := dw.containers["container-id"]; ok {
 				t.Fatal("container still tracked after stop event")
+			}
+		})
+	}
+}
+
+func TestConsumeEventsRunsReconciliation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	reconcile := make(chan time.Time, 1)
+	reconcile <- time.Now()
+	calls := 0
+
+	err := consumeEventsWithReconcile(
+		ctx,
+		make(chan events.Message),
+		make(chan error),
+		reconcile,
+		func(events.Message) {},
+		func() error {
+			calls++
+			cancel()
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("consumeEventsWithReconcile error = %v, want nil", err)
+	}
+	if calls != 1 {
+		t.Fatalf("reconciliation calls = %d, want 1", calls)
+	}
+}
+
+func TestConsumeEventsReturnsReconciliationErrors(t *testing.T) {
+	wantErr := errors.New("sync failed")
+	reconcile := make(chan time.Time, 1)
+	reconcile <- time.Now()
+
+	err := consumeEventsWithReconcile(
+		context.Background(),
+		make(chan events.Message),
+		make(chan error),
+		reconcile,
+		func(events.Message) {},
+		func() error { return wantErr },
+	)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("consumeEventsWithReconcile error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestUpdateContainerRepairsMissingOrStaleRecords(t *testing.T) {
+	tests := []struct {
+		name       string
+		existingIP string
+	}{
+		{name: "missing record"},
+		{name: "stale record", existingIP: "192.168.1.50"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dw := &DockerWatcher{
+				hostIP:     "192.168.1.100",
+				records:    NewRecords(),
+				containers: map[string][]string{"container-id": {"app.example.com"}},
+			}
+			if tc.existingIP != "" {
+				dw.records.Add("app.example.com", tc.existingIP)
+			}
+
+			callbackCalls := 0
+			dw.SetCallback(func(hostname, ip string, added bool, _ int64) {
+				callbackCalls++
+				if hostname != "app.example.com" || ip != dw.hostIP || !added {
+					t.Errorf("callback = %q, %q, %v; want app.example.com, %q, true", hostname, ip, added, dw.hostIP)
+				}
+			})
+
+			dw.updateContainer("container-id", []string{"app.example.com"})
+
+			if got, ok := dw.records.Lookup("app.example.com"); !ok || got != dw.hostIP {
+				t.Fatalf("reconciled record = %q, %v; want %q, true", got, ok, dw.hostIP)
+			}
+			if callbackCalls != 1 {
+				t.Fatalf("callback calls = %d, want 1", callbackCalls)
 			}
 		})
 	}
