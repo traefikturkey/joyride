@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1](https://github.com/traefikturkey/joyride/compare/v2.5.0...v2.5.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **dns:** reconcile missed Docker records ([afe04d6](https://github.com/traefikturkey/joyride/commit/afe04d64d8ed4db34a14204dc4cebd6339a693a3))
+
 ## [2.5.0](https://github.com/traefikturkey/joyride/compare/v2.4.4...v2.5.0) (2026-07-22)
 
 
