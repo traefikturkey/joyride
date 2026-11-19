@@ -36,6 +36,7 @@ test-unit:
 		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go get google.golang.org/grpc@v1.83.1 && \
 		go mod tidy && \
 		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
 		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
@@ -61,6 +62,7 @@ test-race:
 		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go get google.golang.org/grpc@v1.83.1 && \
 		go mod tidy && \
 		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
 		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
@@ -142,6 +144,7 @@ audit:
 		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go get google.golang.org/grpc@v1.83.1 && \
 		go mod tidy && \
 		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
 		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
