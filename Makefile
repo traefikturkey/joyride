@@ -32,13 +32,13 @@ test-unit:
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/moby/moby/api@v1.55.0 && \
-		go get github.com/moby/moby/client@v0.5.0 && \
+		go get github.com/moby/moby/api@v1.57.0 && \
+		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
 		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		echo "Running traefik-externals tests..." && \
 		go test -v -timeout 60s ./plugin/traefik-externals/... && \
@@ -57,13 +57,13 @@ test-race:
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/moby/moby/api@v1.55.0 && \
-		go get github.com/moby/moby/client@v0.5.0 && \
+		go get github.com/moby/moby/api@v1.57.0 && \
+		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
 		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		echo "Running tests with race detector..." && \
 		CGO_ENABLED=1 go test -v -race -timeout 120s ./plugin/docker-cluster/... ./plugin/traefik-externals/...'
@@ -138,13 +138,13 @@ audit:
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/moby/moby/api@v1.55.0 && \
-		go get github.com/moby/moby/client@v0.5.0 && \
+		go get github.com/moby/moby/api@v1.57.0 && \
+		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
 		go mod tidy && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
 		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		govulncheck ./...'
 
