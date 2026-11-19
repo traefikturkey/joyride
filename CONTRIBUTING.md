@@ -62,7 +62,7 @@ git commit -m "feat!: require explicit docker_socket in Corefile"
 ## Development
 
 ### Prerequisites
-- Go 1.24+
+- Go 1.26+ (CI and Docker builds use Go 1.27)
 - Docker
 - Make
 

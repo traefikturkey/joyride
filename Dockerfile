@@ -51,7 +51,8 @@ RUN go get github.com/moby/moby/api@v1.57.0 && \
     go get github.com/moby/moby/client@v0.6.3 && \
     go get github.com/hashicorp/memberlist@v0.5.1 && \
     go get github.com/fsnotify/fsnotify@v1.7.0 && \
-    go get google.golang.org/grpc@v1.83.1 && \
+    go get google.golang.org/grpc@v1.83.2 && \
+    go get go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.47.0 && \
     go mod tidy && \
     test "$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
     test "$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
