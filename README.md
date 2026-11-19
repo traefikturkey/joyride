@@ -1,43 +1,50 @@
-# CoreDNS Docker DNS
+# Joyride
 
-A CoreDNS plugin that provides DNS resolution for Docker containers. Drop-in replacement for Joyride (dnsmasq-based Docker DNS).
+Joyride is a standalone DNS service for your network, packaged as a ready-to-run Docker container. It watches Docker and automatically adds or removes DNS records as labeled containers start or stop. It runs on CoreDNS and can also serve static host entries.
+
+By default, Joyride answers for the names it knows on port 54 and leaves unknown queries unanswered. Run it alongside your network's main DNS resolver: forward a dedicated subdomain for your services to Joyride and leave other queries with your existing resolver. Set `DNS_UNKNOWN_ACTION=nxdomain` if you want an immediate negative response for unknown names instead of a timeout.
 
 ## Quick Start
 
-Using the pre-built image:
+### 1. Run Joyride
+
+Replace `192.168.16.61` with the LAN address clients should use to reach your apps, typically your Docker host or reverse proxy. Joyride returns this address in the IPv4 (A) records it creates from labels.
 
 ```bash
-docker run -d --name coredns-docker \
+docker run -d --name joyride --restart unless-stopped \
   -p 54:54/udp -p 54:54/tcp -p 5454:5454 \
   -e HOSTIP=192.168.16.61 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  ghcr.io/traefikturkey/joyride:coredns
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  ghcr.io/traefikturkey/joyride:latest
 ```
 
-Or build locally with Docker Compose:
+### 2. Label an app container
 
-```bash
-export HOSTIP=192.168.16.61
-docker compose up -d
-```
-
-## How It Works
-
-1. Watches Docker for containers with DNS labels
-2. Serves A records for labeled containers
-3. Unknown hostnames get no response (timeout) - allows EdgeRouter to query upstream
-
-## Container Labels
-
-Add labels to your containers to register DNS names:
+Add a DNS label to a service and start or recreate its container on the same Docker host as Joyride. Replace `apps.example.com` with the dedicated subdomain you want Joyride to serve.
 
 ```yaml
 services:
   myapp:
     image: nginx
     labels:
-      - "coredns.host.name=myapp.example.com"
+      - "coredns.host.name=myapp.apps.example.com"
 ```
+
+### 3. Verify the record
+
+Query the LAN address of the machine running Joyride on port 54. The answer should be the configured `HOSTIP`, which may be a different address if you use a separate reverse proxy.
+
+```bash
+dig @192.168.16.61 -p 54 myapp.apps.example.com A +short
+```
+
+### 4. Connect your network resolver
+
+Configure your router or DNS resolver to forward `apps.example.com` to Joyride on TCP and UDP port 54. See [Network DNS Setup](#network-dns-setup) for examples. Then query the same hostname through your normal resolver to verify that forwarding works.
+
+## Container Labels
+
+Use `coredns.host.name` to give a container one or more DNS names.
 
 Multiple hostnames:
 ```yaml
@@ -45,19 +52,40 @@ labels:
   - "coredns.host.name=app.example.com,api.example.com"
 ```
 
-Joyride compatibility:
+Also accepted:
 ```yaml
 labels:
   - "joyride.host.name=myapp.example.com"
 ```
 
-## Static DNS Entries
+## Network DNS Setup
 
-For hosts that aren't Docker containers (NAS, printers, etc.), add entries to the hosts file:
+Replace `apps.example.com` with your dedicated subdomain and `192.168.16.61` with the address of the machine running Joyride. The `server=` rules below send queries for that subdomain only to the configured Joyride server or cluster nodes. With these rules alone, names that Joyride does not know will not fall back to public DNS.
+
+### EdgeRouter
 
 ```bash
-vi ./etc/joyride/hosts.d/hosts
+configure
+set service dns forwarding options "server=/apps.example.com/192.168.16.61#54"
+commit
+save
 ```
+
+For a cluster, add one `server=/apps.example.com/<node-ip>#54` rule per Joyride node.
+
+### Pi-hole or dnsmasq
+
+Add a domain-specific rule to your resolver's configuration:
+
+```ini
+server=/apps.example.com/192.168.16.61#54
+```
+
+For standalone dnsmasq, add it in a configured directory such as `/etc/dnsmasq.d/` and restart the service. On Pi-hole v6, add it to `misc.dnsmasq_lines` under **Settings > All settings**. See the [dnsmasq manual](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) for forwarding options.
+
+## Static DNS Entries
+
+For hosts that aren't Docker containers (NAS, printers, etc.), add entries to a file named `hosts`. For `docker run`, add `-v /path/to/hosts.d:/etc/hosts.d:ro` and put the file in that directory. The repository's Docker Compose setup already mounts `./etc/joyride/hosts.d`.
 
 Use standard hosts file format:
 ```
@@ -69,7 +97,7 @@ Static entries take priority over Docker container labels. Changes are picked up
 
 ## Traefik External Services
 
-The `traefik-externals` plugin automatically creates DNS records from Traefik external service configurations. This is useful when you have services running outside Docker (VMs, bare metal, external APIs) that are proxied through Traefik.
+The `traefik-externals` plugin can create DNS records for services proxied through Traefik, including services outside Docker (VMs, bare metal, or external APIs). With the shipped `Corefile`, the Docker plugin stops unknown queries before they reach this plugin. To use Traefik records, mount your YAML directory and use a custom `Corefile` with `fallthrough` in `docker-cluster`. Without a `forward` directive, Joyride then returns `SERVFAIL` for unknown names instead of staying silent. See [Forwarding Unknown Queries](#forwarding-unknown-queries) to send those queries to an upstream resolver.
 
 ### How It Works
 
@@ -120,7 +148,7 @@ rule: Host(`app.{{env "DOMAIN"}}`)  # Resolves $DOMAIN at runtime
 
 ### Configuration
 
-Mount your Traefik external configs directory:
+Mount your Traefik external configs directory in the `coredns` service in the repository's Compose file:
 
 ```yaml
 services:
@@ -153,16 +181,14 @@ The plugin also gracefully disables itself if the config directory doesn't exist
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HOSTIP` | IP address to return for all container DNS records | Auto-detected (host network) |
+| `HOSTIP` | IPv4 address returned for names from Docker labels and Traefik configs | Set explicitly on a bridge network; can be auto-detected with host networking |
 | `DOCKER_SOCKET` | Docker socket path | `unix:///var/run/docker.sock` |
 | `DNS_UNKNOWN_ACTION` | What to do for unknown hostnames: `drop` or `nxdomain` | `drop` |
 
-### Legacy Joyride Compatibility
+### Deprecated Environment Variables
 
-For backward compatibility with existing joyride configurations:
-
-| Legacy Variable | Maps To | Notes |
-|-----------------|---------|-------|
+| Variable | Use Instead | Notes |
+|----------|-------------|-------|
 | `JOYRIDE_ENABLE_SERF` | `CLUSTER_ENABLED` | `true` enables clustering |
 | `JOYRIDE_NXDOMAIN_ENABLED` | `DNS_UNKNOWN_ACTION` | `true` = nxdomain, `false` = drop |
 
@@ -183,7 +209,7 @@ docker-cluster {
 
 ## Clustering
 
-Multiple CoreDNS nodes can share DNS records using SWIM gossip protocol. Each node watches its local Docker daemon and replicates records to peers.
+Multiple Joyride nodes can share DNS records using the SWIM gossip protocol. Each node watches its local Docker daemon and replicates records to peers.
 
 ### Quick Start (Automatic Discovery)
 
@@ -201,15 +227,15 @@ Or manually:
 docker run -d --network host \
   -e CLUSTER_ENABLED=true \
   -e NODE_NAME=node1 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  ghcr.io/traefikturkey/joyride:coredns
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  ghcr.io/traefikturkey/joyride:latest
 
 # Node 2 (automatically finds Node 1 via broadcast)
 docker run -d --network host \
   -e CLUSTER_ENABLED=true \
   -e NODE_NAME=node2 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  ghcr.io/traefikturkey/joyride:coredns
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  ghcr.io/traefikturkey/joyride:latest
 ```
 
 **Note:** Host networking enables:
@@ -240,27 +266,27 @@ VLAN 10 (10.0.10.x)            VLAN 20 (10.0.20.x)            VLAN 30 (10.0.30.x
 └─────────────────┘            └─────────────────┘            └─────────────────┘
 ```
 
-**Seed Node** (10.0.20.10) — starts first, no `CLUSTER_SEEDS`:
+**Seed Node** (10.0.20.10): starts first, no `CLUSTER_SEEDS`:
 
 ```yaml
 services:
   joyride:
-    image: ghcr.io/traefikturkey/joyride:coredns
+    image: ghcr.io/traefikturkey/joyride:latest
     network_mode: host
     environment:
       - HOSTIP=10.0.20.10
       - CLUSTER_ENABLED=true
       - NODE_NAME=node-seed
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
 
-**Member Nodes** — point to the seed node:
+**Member Nodes**: point to the seed node:
 
 ```yaml
 services:
   joyride:
-    image: ghcr.io/traefikturkey/joyride:coredns
+    image: ghcr.io/traefikturkey/joyride:latest
     network_mode: host
     environment:
       - HOSTIP=10.0.10.11
@@ -268,7 +294,7 @@ services:
       - NODE_NAME=node-web-1
       - CLUSTER_SEEDS=10.0.20.10:7946
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
 
 #### Startup Order
@@ -289,9 +315,9 @@ Ensure these ports are open between all cluster nodes:
 | Port | Protocol | Purpose |
 |------|----------|---------|  
 | 7946 | TCP/UDP | Memberlist gossip |
-| 54 | TCP/UDP | DNS (default joyride port) |
+| 54 | TCP/UDP | DNS (default Joyride port) |
 
-**Note:** If you have configured joyride to listen on port 53 (standard DNS port), open port 53 instead of 54.
+**Note:** If you have configured Joyride to listen on port 53 (standard DNS port), open port 53 instead of 54.
 
 #### Encryption
 
@@ -333,65 +359,14 @@ make test-cluster
 | Log Message | Cause | Solution |
 |-------------|-------|----------|
 | `failed to join <ip>:7946: connection refused` | Seed node not running or firewall blocking port 7946 | Ensure seed node is started first; verify port 7946 is open (TCP/UDP) between nodes |
-| `Refuting a dead message` | Normal during rejoin; another node had marked this node as dead | No action needed — node is announcing it's back online |
+| `Refuting a dead message` | Normal during rejoin; another node had marked this node as dead | No action needed; the node is announcing it's back online |
 | `failed to join` on startup (multiple seeds) | Some seed nodes unavailable | Expected if not all seeds are running; node will use available seeds |
 | Nodes not seeing each other's DNS records | Clustering not enabled on all nodes | Verify `CLUSTER_ENABLED=true` is set on every node |
-| `memberlist: Initiating push/pull sync` | Normal protocol operation | Informational — nodes are synchronizing state |
-
-## EdgeRouter Setup
-
-Configure EdgeRouter to forward specific domains to CoreDNS:
-
-```bash
-configure
-set service dns forwarding options "server=/example.com/192.168.16.61#54"
-set service dns forwarding options "all-servers"
-commit
-save
-```
-
-**Important:** The `all-servers` option is required. It queries all DNS servers in parallel. When CoreDNS doesn't know a hostname (e.g., `www.example.com` pointing to GitHub Pages), it stays silent, and EdgeRouter uses the upstream response.
-
-Without `all-servers`, EdgeRouter would wait for CoreDNS to respond before trying upstream DNS, causing timeouts for external hostnames.
-
-### Multiple Cluster Nodes
-
-When running a cluster, add each node:
-
-```bash
-set service dns forwarding options "server=/example.com/192.168.16.61#54"
-set service dns forwarding options "server=/example.com/192.168.16.62#54"
-set service dns forwarding options "all-servers"
-```
-
-## PiHole / dnsmasq Setup
-
-Joyride runs on port 54 to avoid conflicts with local systemd-resolved. It does not forward DNS requests to another server - instead, configure your main DNS server to forward specific domain queries to it.
-
-```bash
-echo -e "server=/example.com/192.168.1.2#54\nall-servers\nno-negcache" | sudo tee -a /etc/dnsmasq.d/03-custom-dns-names.conf
-```
-
-Replace:
-- `example.com` - your domain
-- `192.168.1.2` - IP address of the server running Joyride
-
-Then restart dnsmasq:
-```bash
-sudo systemctl restart dnsmasq
-# Or for PiHole:
-pihole restartdns
-```
-
-### dnsmasq Options Explained
-
-- **all-servers** - Query all available DNS servers simultaneously and use the first response. Without this, dnsmasq waits for Joyride to respond (or timeout) before trying upstream DNS, causing delays for external hostnames.
-
-- **no-negcache** - Disable caching of negative results (NXDOMAIN). This prevents dnsmasq from caching "not found" responses, which is important when Joyride containers start/stop dynamically.
-
-See the [dnsmasq documentation](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) for all available options.
+| `memberlist: Initiating push/pull sync` | Normal protocol operation | Informational; nodes are synchronizing state |
 
 ## Testing
+
+To build and run Joyride from a local checkout, set `HOSTIP` and run `docker compose up -d --build`.
 
 ```bash
 # Query a container hostname
@@ -411,7 +386,7 @@ Health check is on port 5454.
 
 ## Version Endpoint
 
-Query build version information:
+With bridge networking, publish the version port with `-p 8081:8081` when starting the container. With host networking, no port mapping is needed.
 
 ```bash
 curl http://192.168.16.61:8081/version
@@ -433,7 +408,7 @@ Override the port with `COREDNS_VERSION_PORT` environment variable (default: `:8
 View registered hostnames and configuration:
 
 ```bash
-docker logs coredns-docker-cluster
+docker logs joyride  # Use your container name if different
 ```
 
 Example output:
@@ -447,18 +422,10 @@ docker-cluster: registered hostnames: [app.example.com api.example.com web.examp
 
 ## Forwarding Unknown Queries
 
-If you want CoreDNS to forward unknown queries to upstream DNS (instead of dropping them), use the native `forward` plugin:
+To have Joyride forward queries it cannot answer instead of dropping them, copy the shipped [Corefile](Corefile) and make these changes inside the `.:54` server block:
 
-```
-.:54 {
-    docker-cluster {
-        host_ip {$HOSTIP}
-        fallthrough
-    }
-    forward . 8.8.8.8 1.1.1.1
-    errors
-    health :8080
-}
-```
+1. Add `fallthrough` inside `docker-cluster` so misses reach the next plugin instead of using `DNS_UNKNOWN_ACTION`.
+2. Keep `fallthrough` inside `traefik-externals` if you use it.
+3. Add a `forward` directive, for example `forward . <upstream-resolver-ip>`. Replace the placeholder with the IP address of a resolver that does not send these queries back to Joyride. Do not point it at the network resolver configured above to forward the subdomain to Joyride.
 
-See the commented example in `Corefile` for details.
+Mount your custom file at `/etc/coredns/Corefile` and recreate the container. With `docker run`, add `-v /path/to/Corefile:/etc/coredns/Corefile:ro`; the repository's Compose file already mounts `./Corefile`.
