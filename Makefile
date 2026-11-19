@@ -23,22 +23,24 @@ test: test-unit test-integration
 # Run unit tests (inside Docker with CoreDNS environment)
 test-unit:
 	@echo "Running unit tests in Docker..."
-	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.25-alpine sh -c '\
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.27-alpine sh -c '\
 		apk add --no-cache git curl jq >/dev/null 2>&1 && \
-		COREDNS_VERSION=v1.14.3 && \
+		COREDNS_VERSION=v1.14.7 && \
 		echo "Testing with CoreDNS $$COREDNS_VERSION" && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
 		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/moby/moby/api@v1.55.0 && \
-		go get github.com/moby/moby/client@v0.5.0 && \
+		go get github.com/moby/moby/api@v1.57.0 && \
+		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go get google.golang.org/grpc@v1.83.2 && \
+		go get go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.47.0 && \
 		go mod tidy && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
 		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		echo "Running traefik-externals tests..." && \
 		go test -v -timeout 60s ./plugin/traefik-externals/... && \
@@ -48,22 +50,24 @@ test-unit:
 # Run unit tests with race detector (slower but catches race conditions)
 test-race:
 	@echo "Running unit tests with race detector in Docker..."
-	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.25-alpine sh -c '\
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.27-alpine sh -c '\
 		apk add --no-cache git curl jq build-base >/dev/null 2>&1 && \
-		COREDNS_VERSION=v1.14.3 && \
+		COREDNS_VERSION=v1.14.7 && \
 		echo "Testing with CoreDNS $$COREDNS_VERSION (race detection enabled)" && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
 		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/moby/moby/api@v1.55.0 && \
-		go get github.com/moby/moby/client@v0.5.0 && \
+		go get github.com/moby/moby/api@v1.57.0 && \
+		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go get google.golang.org/grpc@v1.83.2 && \
+		go get go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.47.0 && \
 		go mod tidy && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
 		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		echo "Running tests with race detector..." && \
 		CGO_ENABLED=1 go test -v -race -timeout 120s ./plugin/docker-cluster/... ./plugin/traefik-externals/...'
@@ -129,22 +133,24 @@ lint:
 # Audit dependencies for known vulnerabilities (uses govulncheck via Docker)
 audit:
 	@echo "Scanning for vulnerabilities..."
-	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.25-alpine sh -c '\
+	@MSYS_NO_PATHCONV=1 docker run --rm -v "$$(pwd)":/src -w /src golang:1.27-alpine sh -c '\
 		apk add --no-cache git curl jq >/dev/null 2>&1 && \
 		go install golang.org/x/vuln/cmd/govulncheck@latest && \
-		COREDNS_VERSION=v1.14.3 && \
+		COREDNS_VERSION=v1.14.7 && \
 		git clone --depth 1 --branch $$COREDNS_VERSION https://github.com/coredns/coredns.git /tmp/coredns 2>/dev/null && \
 		cp -r plugins/docker-cluster /tmp/coredns/plugin/docker-cluster && \
 		cp -r plugins/traefik-externals /tmp/coredns/plugin/traefik-externals && \
 		cp plugin.cfg /tmp/coredns/plugin.cfg && \
 		cd /tmp/coredns && \
-		go get github.com/moby/moby/api@v1.55.0 && \
-		go get github.com/moby/moby/client@v0.5.0 && \
+		go get github.com/moby/moby/api@v1.57.0 && \
+		go get github.com/moby/moby/client@v0.6.3 && \
 		go get github.com/hashicorp/memberlist@v0.5.1 && \
 		go get github.com/fsnotify/fsnotify@v1.7.0 && \
+		go get google.golang.org/grpc@v1.83.2 && \
+		go get go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.47.0 && \
 		go mod tidy && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
-		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
+		test "$$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
 		go list -m github.com/moby/moby/api github.com/moby/moby/client && \
 		govulncheck ./...'
 

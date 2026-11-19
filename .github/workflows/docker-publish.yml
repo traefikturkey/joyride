@@ -28,7 +28,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   # Keep in sync with the COREDNS_VERSION ARG in Dockerfile.
-  COREDNS_VERSION: v1.14.3
+  COREDNS_VERSION: v1.14.7
 
 jobs:
   test:
@@ -40,7 +40,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.25'
+          go-version: '1.27'
 
       - name: Download CoreDNS for plugin dependencies
         run: |
@@ -53,13 +53,15 @@ jobs:
       - name: Run unit tests
         working-directory: /tmp/coredns
         run: |
-          go get github.com/moby/moby/api@v1.55.0
-          go get github.com/moby/moby/client@v0.5.0
+          go get github.com/moby/moby/api@v1.57.0
+          go get github.com/moby/moby/client@v0.6.3
           go get github.com/hashicorp/memberlist@v0.5.1
           go get github.com/fsnotify/fsnotify@v1.10.0
+          go get google.golang.org/grpc@v1.83.2
+          go get go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.47.0
           go mod tidy
-          test "$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0
-          test "$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0
+          test "$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0
+          test "$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3
           go list -m github.com/moby/moby/api github.com/moby/moby/client
           echo "Running traefik-externals tests..."
           go test -v -timeout 60s ./plugin/traefik-externals/...

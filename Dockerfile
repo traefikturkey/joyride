@@ -16,13 +16,13 @@
 # Clones CoreDNS source - cached until base image changes
 # -----------------------------------------------------------------------------
 # Pinned by digest for reproducibility (Dependabot keeps this current).
-FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS base
+FROM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS base
 
 RUN apk add --no-cache git
 
 # Pinned CoreDNS version. Keep in sync with go.mod and the test job in
 # .github/workflows/docker-publish.yml. Bump deliberately, not implicitly.
-ARG COREDNS_VERSION=v1.14.3
+ARG COREDNS_VERSION=v1.14.7
 
 WORKDIR /build
 
@@ -42,18 +42,20 @@ COPY plugin.cfg /build/coredns/plugin.cfg
 # -----------------------------------------------------------------------------
 FROM base AS deps
 
-# Copy plugin source files (including subdirectories like version/)
+# Copy plugin source files into the upstream tree.
 COPY plugins/docker-cluster/ /build/coredns/plugin/docker-cluster/
 COPY plugins/traefik-externals/ /build/coredns/plugin/traefik-externals/
 
 # Add dependencies and download (must be after plugin copy so go mod tidy works)
-RUN go get github.com/moby/moby/api@v1.55.0 && \
-    go get github.com/moby/moby/client@v0.5.0 && \
+RUN go get github.com/moby/moby/api@v1.57.0 && \
+    go get github.com/moby/moby/client@v0.6.3 && \
     go get github.com/hashicorp/memberlist@v0.5.1 && \
     go get github.com/fsnotify/fsnotify@v1.7.0 && \
+    go get google.golang.org/grpc@v1.83.2 && \
+    go get go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@v1.47.0 && \
     go mod tidy && \
-    test "$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.55.0 && \
-    test "$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.5.0 && \
+    test "$(go list -m -f '{{.Version}}' github.com/moby/moby/api)" = v1.57.0 && \
+    test "$(go list -m -f '{{.Version}}' github.com/moby/moby/client)" = v0.6.3 && \
     go list -m github.com/moby/moby/api github.com/moby/moby/client && \
     go mod download
 
@@ -99,16 +101,16 @@ ARG BUILD_TIME=unknown
 RUN CGO_ENABLED=0 GOOS=linux go generate && \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w \
-    -X github.com/coredns/coredns/plugin/docker-cluster/version.Version=${VERSION} \
-    -X github.com/coredns/coredns/plugin/docker-cluster/version.GitCommit=${GIT_COMMIT} \
-    -X github.com/coredns/coredns/plugin/docker-cluster/version.BuildTime=${BUILD_TIME}" \
+    -X github.com/coredns/coredns/plugin/docker-cluster.Version=${VERSION} \
+    -X github.com/coredns/coredns/plugin/docker-cluster.GitCommit=${GIT_COMMIT} \
+    -X github.com/coredns/coredns/plugin/docker-cluster.BuildTime=${BUILD_TIME}" \
     -o /coredns .
 
 # -----------------------------------------------------------------------------
 # Stage: production
 # Minimal runtime image - only the binary and essential runtime deps
 # -----------------------------------------------------------------------------
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS production
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS production
 
 # Receive build args for labels
 ARG VERSION=dev

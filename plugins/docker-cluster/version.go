@@ -1,11 +1,7 @@
-// Package version contains build-time version information injected via ldflags.
-package version
+package dockercluster
 
-// Version information set at build time via ldflags.
-// At build time this package's import path is
-// github.com/coredns/coredns/plugin/docker-cluster/version
-// because the plugin source is copied into the cloned CoreDNS module tree.
-// See the Dockerfile builder stage for the matching -X flags.
+// Version information is injected by the Dockerfile using the package path in
+// the cloned CoreDNS module: github.com/coredns/coredns/plugin/docker-cluster.
 var (
 	// Version is the semantic version (e.g., "1.0.0")
 	Version = "dev"
