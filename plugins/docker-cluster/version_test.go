@@ -1,4 +1,4 @@
-package version
+package dockercluster
 
 import (
 	"encoding/json"
@@ -61,16 +61,7 @@ func TestVersionHandler_GET(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/version", nil)
 	w := httptest.NewRecorder()
 
-	// Create handler and serve
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(GetInfo())
-	})
-	handler.ServeHTTP(w, req)
+	(&DockerCluster{}).versionHandler(w, req)
 
 	// Check response
 	if w.Code != http.StatusOK {
@@ -95,20 +86,13 @@ func TestVersionHandler_GET(t *testing.T) {
 func TestVersionHandler_MethodNotAllowed(t *testing.T) {
 	methods := []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch}
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(GetInfo())
-	})
+	handler := &DockerCluster{}
 
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
 			req := httptest.NewRequest(method, "/version", nil)
 			w := httptest.NewRecorder()
-			handler.ServeHTTP(w, req)
+			handler.versionHandler(w, req)
 
 			if w.Code != http.StatusMethodNotAllowed {
 				t.Errorf("expected status 405 for %s, got %d", method, w.Code)

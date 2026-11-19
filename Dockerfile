@@ -99,9 +99,9 @@ ARG BUILD_TIME=unknown
 RUN CGO_ENABLED=0 GOOS=linux go generate && \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w \
-    -X github.com/coredns/coredns/plugin/docker-cluster/version.Version=${VERSION} \
-    -X github.com/coredns/coredns/plugin/docker-cluster/version.GitCommit=${GIT_COMMIT} \
-    -X github.com/coredns/coredns/plugin/docker-cluster/version.BuildTime=${BUILD_TIME}" \
+    -X github.com/coredns/coredns/plugin/docker-cluster.Version=${VERSION} \
+    -X github.com/coredns/coredns/plugin/docker-cluster.GitCommit=${GIT_COMMIT} \
+    -X github.com/coredns/coredns/plugin/docker-cluster.BuildTime=${BUILD_TIME}" \
     -o /coredns .
 
 # -----------------------------------------------------------------------------
