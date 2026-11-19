@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2](https://github.com/traefikturkey/joyride/compare/v2.5.1...v2.5.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **build:** resolve version metadata from the Joyride module ([df363fc](https://github.com/traefikturkey/joyride/commit/df363fc442e08af84d8c8adfc3a2df96f0908656))
+* **deps:** patch OpenTelemetry and align Go test versions ([541e4ca](https://github.com/traefikturkey/joyride/commit/541e4cafc79af4eaf3eaf51830a692ed39649acd))
+* **deps:** refresh Go builder image to 1.27.4 ([84998db](https://github.com/traefikturkey/joyride/commit/84998db01ed840826e39adb317f8698f3e416ac9))
+* **deps:** update gRPC to v1.83.1 ([2676bcd](https://github.com/traefikturkey/joyride/commit/2676bcd98f5951a9630d130cc44ba1fce4c18977))
+* **deps:** upgrade CoreDNS to v1.14.7 ([c554fdc](https://github.com/traefikturkey/joyride/commit/c554fdc054d98b6611b1abd7e8b0c74c98c8fada))
+
 ## [2.5.1](https://github.com/traefikturkey/joyride/compare/v2.5.0...v2.5.1) (2026-11-19)
 
 
