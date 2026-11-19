@@ -22,7 +22,7 @@ RUN apk add --no-cache git
 
 # Pinned CoreDNS version. Keep in sync with go.mod and the test job in
 # .github/workflows/docker-publish.yml. Bump deliberately, not implicitly.
-ARG COREDNS_VERSION=v1.14.3
+ARG COREDNS_VERSION=v1.14.7
 
 WORKDIR /build
 
@@ -42,7 +42,7 @@ COPY plugin.cfg /build/coredns/plugin.cfg
 # -----------------------------------------------------------------------------
 FROM base AS deps
 
-# Copy plugin source files (including subdirectories like version/)
+# Copy plugin source files into the upstream tree.
 COPY plugins/docker-cluster/ /build/coredns/plugin/docker-cluster/
 COPY plugins/traefik-externals/ /build/coredns/plugin/traefik-externals/
 

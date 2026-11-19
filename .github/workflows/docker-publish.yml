@@ -28,7 +28,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   # Keep in sync with the COREDNS_VERSION ARG in Dockerfile.
-  COREDNS_VERSION: v1.14.3
+  COREDNS_VERSION: v1.14.7
 
 jobs:
   test:
